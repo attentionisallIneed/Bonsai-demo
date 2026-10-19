@@ -61,6 +61,7 @@ if (-not $DryRun) { try {
 # Captured unconditionally: the finally block at the end restores it on every
 # launch, not just the ones where the KV4 bias block below sets it.
 $priorRotDisable = $env:LLAMA_ATTN_ROT_DISABLE
+try {
 
 if ($BonsaiFamily -eq "bonsai2") {
     $ModelDir = Join-Path $DemoDir "models\bonsai2-gguf\$BonsaiModel"
@@ -211,8 +212,10 @@ if ($BonsaiModel -eq "27B") {
             $SpecArgs = @("-md", $Drafter.FullName, "--spec-type", "draft-dspark", "--spec-draft-n-max", $Nmax, "-ngld", "999", "-np", "1")
             # dspark re-prefills every request; give the model room to think.
             # An explicit non-zero BONSAI_CTX still wins; unset or 0 (auto) gets
-            # this dspark-friendly floor.
-            if (-not $env:BONSAI_CTX -or $env:BONSAI_CTX -eq "0") { $Ctx = "16384" }
+            # this dspark-friendly floor. Explicit profile contexts are preserved.
+            if (-not $ProfileConfig -and (-not $env:BONSAI_CTX -or $env:BONSAI_CTX -eq "0")) {
+                $Ctx = "$([math]::Max([int]$Ctx, 16384))"
+            }
             Write-Host "  Speculative: $($Drafter.Name) (draft-dspark, n-max $Nmax)" -ForegroundColor Green
         } else {
             Write-Host "[WARN] BONSAI_SPECULATIVE=1 but no converted *dspark-dflash*.gguf drafter in $ModelDir - running without speculation." -ForegroundColor Yellow
@@ -227,6 +230,15 @@ if ($BonsaiModel -eq "27B") {
     $KvArgs = @()
     $UseKv4 = if ($null -ne $env:BONSAI_KV4) { $env:BONSAI_KV4 -eq "1" } else { $ProfileConfig -and $ProfileConfig.kv4 }
     if ($UseKv4) {
+        # Known prebuilt CUDA builds contain a quantized-KV out-of-bounds write.
+        # Unknown/custom builds and other backends are not identified by this marker.
+        $ReleaseMarker = Join-Path $DemoDir "bin\.llama_release"
+        if (-not $DryRun -and $BinRel -like "bin\cuda\*" -and (Test-Path -LiteralPath $ReleaseMarker)) {
+            $Release = Get-Content -LiteralPath $ReleaseMarker -Raw
+            if ($Release -match 'prism-b(\d+)' -and [int]$Matches[1] -gt 10709 -and [int]$Matches[1] -lt 10776) {
+                throw "CUDA build prism-b$($Matches[1]) has a known quantized-KV memory bug. Run .\scripts\download_cuda_bin.ps1 before using BONSAI_KV4=1 or a long/max profile."
+            }
+        }
         $KvArgs = @("--cache-type-k", "q4_0", "--cache-type-v", "q4_0")
         $BiasPath = Join-Path $ModelDir ($Model.BaseName + "-kv-bias.gguf")
         $KvBias = Get-Item -LiteralPath $BiasPath -ErrorAction SilentlyContinue
@@ -309,7 +321,6 @@ if ($env:BONSAI_API_KEY) { $ServerArgs += @("--api-key", $env:BONSAI_API_KEY) }
 
 $EffCtx = if ($BonsaiModel -eq "27B") { $Ctx } else { $CtxDefault }
 Write-Host "  Context: -c $EffCtx (override with BONSAI_CTX, 0 = auto)"
-try {
     if ($DryRun) {
         $SafeArgs = @($ServerArgs + $ExtraArgs)
         for ($i = 0; $i -lt $SafeArgs.Count; $i++) {
@@ -320,7 +331,22 @@ try {
         @{ binary=$Bin; profile=$Profile; arguments=$SafeArgs } | ConvertTo-Json -Depth 4
         $code = 0
     } else {
-        & $Bin @ServerArgs @ExtraArgs
+        $NativeExtraArgs = @($ExtraArgs)
+        if ($PSVersionTable.PSEdition -eq 'Desktop') {
+            # Windows PowerShell's legacy native binder removes JSON quotes.
+            # Escape valid JSON at the final native boundary; already escaped
+            # legacy values remain unchanged rather than being escaped twice.
+            for ($i = 0; $i -lt $NativeExtraArgs.Count - 1; $i++) {
+                if ($NativeExtraArgs[$i] -eq "--chat-template-kwargs") {
+                    try {
+                        $null = ConvertFrom-Json -InputObject $NativeExtraArgs[$i + 1] -ErrorAction Stop
+                        $NativeExtraArgs[$i + 1] = [regex]::Replace($NativeExtraArgs[$i + 1], '(\\*)"', '${1}${1}\"')
+                    } catch {}
+                    $i++
+                }
+            }
+        }
+        & $Bin @ServerArgs @NativeExtraArgs
         $code = $LASTEXITCODE
     }
 } finally {

@@ -1,4 +1,5 @@
 """Exercise the real PowerShell argument boundary without a model or GPU."""
+import base64
 import json
 import os
 from pathlib import Path
@@ -47,6 +48,50 @@ class LauncherTests(unittest.TestCase):
         start = completed.stdout.index('{\n')
         return json.loads(completed.stdout[start:]), completed.stdout
 
+    def compile_native_stub(self):
+        """A real Windows executable exposes the native argv boundary without a GPU."""
+        compiler = Path(os.environ.get('SystemRoot', 'C:/Windows')) / 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
+        if os.name != 'nt' or not compiler.exists():
+            self.skipTest('The Windows .NET C# compiler is required for the native argv stub')
+        source = self.root / 'argv-stub.cs'
+        source.write_text('''using System;
+using System.Text;
+class ArgvStub {
+    static int Main(string[] args) {
+        foreach (string arg in args)
+            Console.WriteLine("ARG:" + Convert.ToBase64String(Encoding.UTF8.GetBytes(arg)));
+        return 0;
+    }
+}
+''')
+        binary = self.root / 'bin/cuda/llama-server.exe'
+        binary.unlink()
+        completed = subprocess.run([str(compiler), '/nologo', '/target:exe', '/out:' + str(binary), str(source)],
+                                   capture_output=True, text=True, timeout=25)
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        return binary
+
+    def run_native_launcher(self, *args, shell=None, environment=None, success=True):
+        # No HTTP calls, browser, real model, or GPU process are involved.
+        def quote(value):
+            return "'" + str(value).replace("'", "''") + "'"
+        command = ("function Invoke-WebRequest { throw 'HTTP disabled in launcher tests' }; & " +
+                   quote(self.root / 'scripts/start_llama_server.ps1') + ' ' +
+                   ' '.join(str(value) if value in ('-Profile', '-Port', '-DryRun') else quote(value)
+                            for value in args))
+        completed = subprocess.run([shell or SHELL, '-NoProfile', '-Command', command], cwd=self.root,
+                                   env=dict(self.env, **(environment or {})), capture_output=True,
+                                   text=True, encoding='utf-8', errors='replace', timeout=25)
+        if not success:
+            self.assertNotEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+            return completed
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        arguments = [base64.b64decode(line[4:]).decode('utf-8') for line in completed.stdout.splitlines()
+                     if line.startswith('ARG:')]
+        self.assertTrue(arguments, completed.stdout + completed.stderr)
+        self.assertNotIn('-Profile', arguments, 'Launcher options must bind before the native argument boundary')
+        return arguments
+
     def test_default_is_single_64k_and_preserves_local_auth_without_printing_it(self):
         (self.root / '.bonsai-server.local.json').write_text(json.dumps({'ApiKey': 'local-test-secret'}))
         report, output = self.run_launcher()
@@ -88,6 +133,82 @@ class LauncherTests(unittest.TestCase):
         self.assertNotIn('cli-test-secret', output)
         self.assertNotIn('embedded-secret', output)
         self.run_launcher(environment={'BONSAI_CTX': '-1'}, success=False)
+
+    def test_speculation_keeps_explicit_profile_contexts(self):
+        models = self.root / 'models/ternary-gguf/27B'
+        models.mkdir(parents=True)
+        for name in ('Ternary-Bonsai-27B-PQ2_0.gguf', 'Ternary-Bonsai-27B-dspark-dflash.gguf'):
+            (models / name).touch()
+        profiles = json.loads((self.root / 'scripts/server-profiles.json').read_text())
+        for profile, settings in profiles.items():
+            with self.subTest(profile=profile):
+                report, _ = self.run_launcher('-Profile', profile,
+                                             environment={'BONSAI_FAMILY': 'ternary', 'BONSAI_SPECULATIVE': '1'})
+                self.assertEqual(option(report['arguments'], '-c'), str(settings['context']))
+                self.assertEqual(option(report['arguments'], '-np', '--parallel'), '1')
+
+    def test_preparation_errors_restore_rotation_in_both_powershell_editions(self):
+        (self.root / 'models/bonsai2-gguf/27B/Ternary-Bonsai-2-27B-PQ2_0-kv-bias.gguf').touch()
+        for shell in dict.fromkeys(filter(None, (shutil.which('powershell'), shutil.which('pwsh')))):
+            for previous in ('', 'previous-value'):
+                with self.subTest(shell=shell, previous=previous):
+                    script = str(self.root / 'scripts/start_llama_server.ps1').replace("'", "''")
+                    command = ("try { & '" + script + "' -Profile long -DryRun } "
+                               "catch { Write-Host 'EXPECTED_PREPARATION_ERROR' }; "
+                               "Write-Host ('RESTORED_ROTATION=' + $env:LLAMA_ATTN_ROT_DISABLE)")
+                    completed = subprocess.run([shell, '-NoProfile', '-Command', command], cwd=self.root,
+                                               env=dict(self.env, BONSAI_PARALLEL='invalid',
+                                                        LLAMA_ATTN_ROT_DISABLE=previous), capture_output=True,
+                                               text=True, encoding='utf-8', errors='replace', timeout=25)
+                    self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+                    self.assertIn('EXPECTED_PREPARATION_ERROR', completed.stdout)
+                    self.assertIn('RESTORED_ROTATION=' + previous + '\n', completed.stdout)
+
+    def test_known_unsafe_cuda_quantized_kv_builds_fail_before_native_launch(self):
+        self.compile_native_stub()
+        marker = self.root / 'bin/.llama_release'
+        for build, unsafe in ((10709, False), (10710, True), (10772, True), (10775, True), (10776, False)):
+            with self.subTest(build=build):
+                marker.write_text(f'prism-b{build}-test\n')
+                result = self.run_native_launcher('-Profile', 'balanced', environment={'BONSAI_KV4': '1'},
+                                                  success=not unsafe)
+                if unsafe:
+                    self.assertIn('download_cuda_bin.ps1', result.stdout + result.stderr)
+                    self.assertNotIn('ARG:', result.stdout)
+        marker.write_text('prism-b10772-test\n')
+        report, _ = self.run_launcher('-Profile', 'long')
+        self.assertEqual(option(report['arguments'], '--cache-type-k'), 'q4_0')
+        self.run_native_launcher('-Profile', 'balanced', environment={'BONSAI_KV4': '0'})
+        marker.write_text('custom-build-with-unknown-version\n')
+        self.run_native_launcher('-Profile', 'balanced', environment={'BONSAI_KV4': '1'})
+
+    def test_cuda_kv_guard_does_not_reject_other_or_unidentified_backends(self):
+        binary = self.compile_native_stub()
+        (self.root / 'bin/.llama_release').write_text('prism-b10772-test\n')
+        for destination in ('bin/cpu', 'llama.cpp/build/bin/Release'):
+            with self.subTest(destination=destination):
+                backend = self.root / destination
+                backend.mkdir(parents=True)
+                replacement = backend / 'llama-server.exe'
+                shutil.move(str(binary), str(replacement))
+                self.run_native_launcher('-Profile', 'balanced', environment={'BONSAI_KV4': '1'})
+                shutil.move(str(replacement), str(binary))
+        (self.root / 'bin/.llama_release').unlink()
+        self.run_native_launcher('-Profile', 'balanced', environment={'BONSAI_KV4': '1'})
+
+    def test_template_json_crosses_the_real_native_boundary_in_both_editions(self):
+        self.compile_native_stub()
+        value = json.dumps({'reasoning_effort': 'high', 'message': 'say "hi" at C:\\models\\bonsai'})
+        for shell in dict.fromkeys(filter(None, (shutil.which('powershell'), shutil.which('pwsh')))):
+            with self.subTest(shell=shell):
+                arguments = self.run_native_launcher('-Profile', 'balanced', '--chat-template-kwargs', value, shell=shell)
+                self.assertEqual(json.loads(option(arguments, '--chat-template-kwargs')), json.loads(value))
+        desktop = shutil.which('powershell')
+        if desktop:
+            # Preserve callers who already use legacy escaped JSON on Windows PowerShell.
+            escaped = '{\\"reasoning_effort\\":\\"high\\"}'
+            arguments = self.run_native_launcher('-Profile', 'balanced', '--chat-template-kwargs', escaped, shell=desktop)
+            self.assertEqual(json.loads(option(arguments, '--chat-template-kwargs')), {'reasoning_effort': 'high'})
 
     def test_double_click_wrapper_uses_same_configuration_and_passes_arguments(self):
         if os.name != 'nt':
