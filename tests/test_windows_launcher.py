@@ -23,7 +23,8 @@ class LauncherTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix='bonsai launcher ')
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        # PowerShell expands the hosted runner's RUNNER~1 TEMP alias.
+        self.root = Path(self.temp.name).resolve()
         (self.root / 'scripts').mkdir()
         for name in ('run_server.ps1', 'run_server.bat'):
             shutil.copy2(ROOT / name, self.root / name)
