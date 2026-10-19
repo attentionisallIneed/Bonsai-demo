@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """Opt-in smoke checks against an already running local inference server."""
 import argparse
+import base64
 import json
 import os
 from pathlib import Path
+import struct
 import time
+import zlib
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -82,6 +85,23 @@ def text_check(client):
     return {'answer': message['content']}
 
 
+def vision_check(client):
+    """A synthetic red swatch checks the image path without external files."""
+    def chunk(kind, data):
+        return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data) & 0xffffffff)
+    width = height = 128
+    pixels = (b'\x00' + b'\xff\x00\x00' * width) * height
+    png = (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, 8, 2, 0, 0, 0))
+           + chunk(b'IDAT', zlib.compress(pixels)) + chunk(b'IEND', b''))
+    message = client.chat([{'role': 'user', 'content': [
+        {'type': 'text', 'text': 'What is the solid color in this image? Reply with one lowercase English color word only.'},
+        {'type': 'image_url', 'image_url': {'url': 'data:image/png;base64,' + base64.b64encode(png).decode('ascii')}}]}])
+    answer = (message.get('content') or '').strip().lower().rstrip('.')
+    if answer != 'red':
+        raise CheckFailure('Vision did not identify the red swatch', answer=message.get('content'))
+    return {'answer': message['content'], 'image': 'synthetic 128x128 red PNG'}
+
+
 def tools_check(client):
     schema = [{'type': 'function', 'function': {
         'name': 'lookup_inventory', 'description': 'Read current inventory; retry transient errors.',
@@ -145,7 +165,7 @@ def run(client, cases, context_tokens):
         start = time.monotonic()
         try:
             detail = (context_check(client, context_tokens) if case == 'context'
-                      else {'text': text_check, 'tools': tools_check}[case](client))
+                      else {'text': text_check, 'tools': tools_check, 'vision': vision_check}[case](client))
             result = {'case': case, 'passed': True, **detail}
         except Exception as error:
             result = {'case': case, 'passed': False, 'error': str(error)}
@@ -165,7 +185,7 @@ def main(argv=None):
     parser.add_argument('--reasoning-effort', choices=['medium', 'xhigh'], default='medium')
     parser.add_argument('--timeout', type=float, default=300)
     parser.add_argument('--api-key-env', default='BONSAI_API_KEY')
-    parser.add_argument('--cases', nargs='+', choices=['text', 'tools', 'context'], default=['text', 'tools'])
+    parser.add_argument('--cases', nargs='+', choices=['text', 'tools', 'vision', 'context'], default=['text', 'tools'])
     parser.add_argument('--context-tokens', type=int, default=8000)
     parser.add_argument('--output', type=Path, required=True, help='New JSON report; existing files are refused')
     args = parser.parse_args(argv)

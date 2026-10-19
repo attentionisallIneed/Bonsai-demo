@@ -34,6 +34,20 @@ def tool(arguments='{"sku":"RTX5090"}'):
 
 
 class SmokeChecks(unittest.TestCase):
+    def test_vision_checks_actual_final_answer_and_uses_an_inline_image(self):
+        class VisionClient:
+            def chat(self, messages):
+                parts = messages[0]['content']
+                self_test.assertEqual(parts[1]['type'], 'image_url')
+                self_test.assertTrue(parts[1]['image_url']['url'].startswith('data:image/png;base64,iVBOR'))
+                return {'content': 'red'}
+        self_test = self
+        self.assertEqual(smoke.vision_check(VisionClient())['answer'], 'red')
+        with self.assertRaises(smoke.CheckFailure):
+            smoke.vision_check(FakeClient([{'content': '', 'reasoning_content': 'red'}]))
+        with self.assertRaises(smoke.CheckFailure):
+            smoke.vision_check(FakeClient([{'content': 'blue'}]))
+
     def test_http_error_body_status_and_timing_are_reported(self):
         client = smoke.Client('http://localhost', 'missing', 'medium', 1, key='secret')
         error = HTTPError('http://localhost/v1/chat/completions', 400,

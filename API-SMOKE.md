@@ -29,6 +29,13 @@ For a protected endpoint, set `BONSAI_API_KEY`, or specify the name of an existi
 environment variable with `--api-key-env`. Its value is not included in the JSON
 report. Keep report files local unless you intend to share the model output.
 
+## Optional vision check
+
+Add `--cases text tools vision` to check image input as well. The vision check
+creates a synthetic 128x128 red PNG in memory, sends it as an inline image, and
+requires a final answer identifying red. It needs a loaded mmproj and does not
+read user images or contact an external image service.
+
 ## Optional context retrieval
 
 This check additionally requires the llama-server `/tokenize` endpoint. It builds
@@ -44,7 +51,16 @@ python3 scripts/smoke_local_api.py \
   --output smoke-context.json
 ```
 
-`--cases` selects `text`, `tools`, and/or `context`. `--timeout` is the timeout for
+For a near-limit 64K/128K/256K test, use `scripts/benchmark_context.py` instead.
+It counts the entire rendered template, reserves output space, and checks three
+positions plus follow-up history and observed cache reuse:
+
+```bash
+python3 scripts/benchmark_context.py --context-size 131072 \
+  --reserve-tokens 2048 --output performance-results/context-128k.json
+```
+
+`--cases` selects `text`, `tools`, `vision`, and/or `context`. `--timeout` is the timeout for
 each HTTP request (default 300 seconds), not a wall-clock limit for the whole run.
 Tool execution is bounded to six model turns. Existing output files are refused
 before any requests are sent. Exit status is zero only when all selected checks
