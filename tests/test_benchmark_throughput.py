@@ -95,6 +95,19 @@ class StreamingChecks(unittest.TestCase):
         self.assertFalse(result["complete"])
         self.assertIsNone(result["first_content_sec"])
 
+    def test_explicit_history_is_sent_without_losing_previous_turns(self):
+        history = [{"role": "user", "content": "long inventory"},
+                   {"role": "assistant", "content": "first answer"},
+                   {"role": "user", "content": "follow-up"}]
+        with patch.object(benchmark.urllib.request, "urlopen", return_value=Response([
+                chunk(content="answer", finish="stop"), "[DONE]"])) as opener:
+            result = benchmark.send_chat_request(1, {"id": "history", "prompt": "long inventory", "messages": history},
+                                               "off", config(cache="warm"), 42)
+        payload = json.loads(opener.call_args.args[0].data)
+        self.assertEqual(payload["messages"], history)
+        self.assertTrue(payload["cache_prompt"])
+        self.assertTrue(result["complete"])
+
     def test_missing_done_or_finish_is_detected(self):
         for events in ([chunk(content="answer", finish="stop")], [chunk(content="answer"), "[DONE]"]):
             with self.subTest(events=events):

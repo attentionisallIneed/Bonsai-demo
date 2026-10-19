@@ -126,9 +126,16 @@ def merge_tool_calls(existing, chunks):
 
 def send_chat_request(req_id, case, mode, config, seed, cache_marker=None, max_tokens=None):
     payload = make_payload(case["prompt"], mode, config, seed, cache_marker, max_tokens)
+    # Context validation can replay full conversation history through this same
+    # measured SSE path. The normal throughput case remains one user prompt.
+    if "messages" in case:
+        if cache_marker:
+            raise ValueError("cache_marker is not supported with explicit conversation messages")
+        payload["messages"] = case["messages"]
     started = time.perf_counter()
     result = {"req_id": req_id, "prompt_id": case["id"], "seed": seed,
-              "prompt_sha256": hashlib.sha256(payload["messages"][0]["content"].encode()).hexdigest(),
+              "prompt_sha256": hashlib.sha256((json.dumps(payload["messages"], ensure_ascii=False)
+                  if "messages" in case else payload["messages"][0]["content"]).encode()).hexdigest(),
               "cache_marker": cache_marker, "success": False, "complete": False,
               "truncated": False, "stream_done": False, "body_complete": False,
               "finish_reason": None, "ttft_sec": None, "first_content_sec": None,
