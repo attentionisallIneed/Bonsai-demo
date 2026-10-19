@@ -1,5 +1,6 @@
 """Exercise the real PowerShell argument boundary without a model or GPU."""
 import base64
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -35,7 +36,10 @@ class LauncherTests(unittest.TestCase):
         binary = self.root / 'bin' / 'cuda'
         binary.mkdir(parents=True)
         (binary / 'llama-server.exe').touch()
-        self.env = {k: v for k, v in os.environ.items() if not k.startswith(('BONSAI_', 'LLAMA_ARG_'))}
+        # Let each edition discover its own modules. A Python child of pwsh can
+        # otherwise pass PS7's Utility module into Windows PowerShell 5.1.
+        self.env = {k: v for k, v in os.environ.items()
+                    if not k.startswith(('BONSAI_', 'LLAMA_ARG_')) and k.lower() != 'psmodulepath'}
 
     def run_launcher(self, *args, script='run_server.ps1', environment=None, success=True):
         env = dict(self.env, **(environment or {}))
@@ -70,6 +74,20 @@ class ArgvStub {
                                    capture_output=True, text=True, timeout=25)
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         return binary
+
+    def write_bias_fixture(self, *, legacy=False, metadata=True):
+        model = self.root / 'models/bonsai2-gguf/27B/Ternary-Bonsai-2-27B-PQ2_0.gguf'
+        model.write_bytes(b'model A weights')
+        name = 'Bonsai-2-27B-kv-bias.gguf' if legacy else model.stem + '-kv-bias.gguf'
+        bias = model.with_name(name)
+        bias.write_bytes(b'bias fixture A')
+        sidecar = bias.with_name(bias.name + '.json')
+        record = {'model_file': model.name, 'model_size': model.stat().st_size,
+                  'model_sha256': hashlib.sha256(model.read_bytes()).hexdigest(),
+                  'bias_sha256': hashlib.sha256(bias.read_bytes()).hexdigest(), 'k_rot': False}
+        if metadata:
+            sidecar.write_text(json.dumps(record))
+        return model, bias, sidecar, record
 
     def run_native_launcher(self, *args, shell=None, environment=None, success=True):
         # No HTTP calls, browser, real model, or GPU process are involved.
@@ -166,7 +184,7 @@ class ArgvStub {
 
     def test_known_unsafe_cuda_quantized_kv_builds_fail_before_native_launch(self):
         self.compile_native_stub()
-        marker = self.root / 'bin/.llama_release'
+        marker = self.root / 'bin/cuda/.llama_release'
         for build, unsafe in ((10709, False), (10710, True), (10772, True), (10775, True), (10776, False)):
             with self.subTest(build=build):
                 marker.write_text(f'prism-b{build}-test\n')
@@ -184,7 +202,7 @@ class ArgvStub {
 
     def test_cuda_kv_guard_does_not_reject_other_or_unidentified_backends(self):
         binary = self.compile_native_stub()
-        (self.root / 'bin/.llama_release').write_text('prism-b10772-test\n')
+        (self.root / 'bin/cuda/.llama_release').write_text('prism-b10772-test\n')
         for destination in ('bin/cpu', 'llama.cpp/build/bin/Release'):
             with self.subTest(destination=destination):
                 backend = self.root / destination
@@ -193,8 +211,71 @@ class ArgvStub {
                 shutil.move(str(binary), str(replacement))
                 self.run_native_launcher('-Profile', 'balanced', environment={'BONSAI_KV4': '1'})
                 shutil.move(str(replacement), str(binary))
-        (self.root / 'bin/.llama_release').unlink()
+        (self.root / 'bin/cuda/.llama_release').unlink()
         self.run_native_launcher('-Profile', 'balanced', environment={'BONSAI_KV4': '1'})
+
+    def test_bias_identity_hashes_are_verified_before_native_launch(self):
+        self.compile_native_stub()
+        model, bias, sidecar, record = self.write_bias_fixture()
+        for profile in ('long', 'max'):
+            with self.subTest(profile=profile):
+                arguments = self.run_native_launcher('-Profile', profile)
+                self.assertEqual(option(arguments, '--kv-mean-center'), str(bias))
+        # A same-name, same-size replacement must fail the full model hash check.
+        model.write_bytes(b'model B weights')
+        report, output = self.run_launcher('-Profile', 'long')
+        self.assertEqual(option(report['arguments'], '--kv-mean-center'), str(bias))
+        self.assertIn('SHA256 verification is deferred', output)
+        failed = self.run_native_launcher('-Profile', 'long', success=False)
+        self.assertIn('make_kv_bias.ps1', failed.stdout + failed.stderr)
+        self.assertIn('SHA256', failed.stdout + failed.stderr)
+        self.assertNotIn('ARG:', failed.stdout)
+        model.write_bytes(b'model A weights')
+        bias.write_bytes(b'bias fixture B')
+        failed = self.run_native_launcher('-Profile', 'long', success=False)
+        self.assertIn('SHA256', failed.stdout + failed.stderr)
+        self.assertNotIn('ARG:', failed.stdout)
+
+    def test_dry_run_rejects_mismatched_or_malformed_bias_metadata(self):
+        model, bias, sidecar, record = self.write_bias_fixture()
+        invalid = ({'model_file': 'other-model.gguf'}, {'model_size': model.stat().st_size + 1},
+                   {'model_sha256': 'invalid'}, {'bias_sha256': ['0' * 64]},
+                   {'k_rot': True}, {'k_rot': 'false'})
+        for changes in invalid:
+            with self.subTest(changes=changes):
+                sidecar.write_text(json.dumps(dict(record, **changes)))
+                failed = self.run_launcher('-Profile', 'long', success=False)
+                self.assertIn('make_kv_bias.ps1', failed.stdout + failed.stderr)
+        sidecar.write_text('{broken JSON')
+        failed = self.run_launcher('-Profile', 'long', success=False)
+        self.assertIn('Cannot read KV bias metadata', failed.stdout + failed.stderr)
+
+    def test_legacy_named_bias_requires_matching_sidecar_and_hashes(self):
+        self.compile_native_stub()
+        model, bias, sidecar, record = self.write_bias_fixture(legacy=True)
+        arguments = self.run_native_launcher('-Profile', 'long')
+        self.assertEqual(option(arguments, '--kv-mean-center'), str(bias))
+        sidecar.write_text(json.dumps(dict(record, model_file='another-weight-pack.gguf')))
+        failed = self.run_launcher('-Profile', 'auto', environment={'BONSAI_KV4': '1'}, success=False)
+        self.assertIn('make_kv_bias.ps1', failed.stdout + failed.stderr)
+        sidecar.unlink()
+        report, output = self.run_launcher('-Profile', 'auto', environment={'BONSAI_KV4': '1'})
+        self.assertNotIn('--kv-mean-center', report['arguments'])
+        self.assertIn('Ignoring legacy KV bias without model metadata', output)
+
+    def test_unidentified_exact_bias_warns_but_long_profiles_require_metadata(self):
+        self.compile_native_stub()
+        model, bias, sidecar, record = self.write_bias_fixture(metadata=False)
+        report, output = self.run_launcher('-Profile', 'auto', environment={'BONSAI_KV4': '1'})
+        self.assertEqual(option(report['arguments'], '--kv-mean-center'), str(bias))
+        self.assertIn('hashes have not been verified', output)
+        arguments = self.run_native_launcher('-Profile', 'auto', environment={'BONSAI_KV4': '1'})
+        self.assertEqual(option(arguments, '--kv-mean-center'), str(bias))
+        for profile in ('long', 'max'):
+            with self.subTest(profile=profile):
+                failed = self.run_native_launcher('-Profile', profile, success=False)
+                self.assertIn('requires model identity metadata', failed.stdout + failed.stderr)
+                self.assertNotIn('ARG:', failed.stdout)
 
     def test_template_json_crosses_the_real_native_boundary_in_both_editions(self):
         self.compile_native_stub()

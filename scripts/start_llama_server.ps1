@@ -232,7 +232,7 @@ if ($BonsaiModel -eq "27B") {
     if ($UseKv4) {
         # Known prebuilt CUDA builds contain a quantized-KV out-of-bounds write.
         # Unknown/custom builds and other backends are not identified by this marker.
-        $ReleaseMarker = Join-Path $DemoDir "bin\.llama_release"
+        $ReleaseMarker = Join-Path $BinDir ".llama_release"
         if (-not $DryRun -and $BinRel -like "bin\cuda\*" -and (Test-Path -LiteralPath $ReleaseMarker)) {
             $Release = Get-Content -LiteralPath $ReleaseMarker -Raw
             if ($Release -match 'prism-b(\d+)' -and [int]$Matches[1] -gt 10709 -and [int]$Matches[1] -lt 10776) {
@@ -242,19 +242,51 @@ if ($BonsaiModel -eq "27B") {
         $KvArgs = @("--cache-type-k", "q4_0", "--cache-type-v", "q4_0")
         $BiasPath = Join-Path $ModelDir ($Model.BaseName + "-kv-bias.gguf")
         $KvBias = Get-Item -LiteralPath $BiasPath -ErrorAction SilentlyContinue
-        # Accept the legacy family-level bias only when it identifies this model.
+        # A family-level legacy filename cannot identify a particular weight pack.
         if (-not $KvBias) {
             $LegacyBias = Join-Path $ModelDir ($Display + "-kv-bias.gguf")
             $LegacyMetadata = $LegacyBias + ".json"
-            if (Test-Path -LiteralPath $LegacyMetadata) {
-                $BiasMetadata = Get-Content -LiteralPath $LegacyMetadata -Raw | ConvertFrom-Json
-                if ($BiasMetadata.model_file -eq $Model.Name) { $KvBias = Get-Item -LiteralPath $LegacyBias -ErrorAction SilentlyContinue }
+            if (Test-Path -LiteralPath $LegacyBias -PathType Leaf) {
+                if (Test-Path -LiteralPath $LegacyMetadata -PathType Leaf) {
+                    $KvBias = Get-Item -LiteralPath $LegacyBias
+                } else {
+                    Write-Warning "Ignoring legacy KV bias without model metadata: $LegacyBias. Run .\scripts\make_kv_bias.ps1."
+                }
             }
         }
         if (-not $KvBias -and $Profile -in @("long", "max") -and -not $DryRun) {
             throw "Profile '$Profile' requires a calibrated KV bias. Run .\scripts\make_kv_bias.ps1 first."
         }
         if ($KvBias) {
+            $MetadataPath = $KvBias.FullName + ".json"
+            $Recalibrate = "Run .\scripts\make_kv_bias.ps1 to regenerate the bias for these weights."
+            if (Test-Path -LiteralPath $MetadataPath -PathType Leaf) {
+                try { $BiasMetadata = Get-Content -LiteralPath $MetadataPath -Raw | ConvertFrom-Json }
+                catch { throw "Cannot read KV bias metadata '$MetadataPath'. $Recalibrate" }
+                if ($BiasMetadata -isnot [pscustomobject] -or $BiasMetadata.model_file -isnot [string] -or
+                    $BiasMetadata.model_file -cne $Model.Name -or
+                    ($BiasMetadata.model_size -isnot [int] -and $BiasMetadata.model_size -isnot [long]) -or
+                    $BiasMetadata.model_size -ne $Model.Length -or
+                    $BiasMetadata.model_sha256 -isnot [string] -or $BiasMetadata.bias_sha256 -isnot [string] -or
+                    $BiasMetadata.model_sha256 -notmatch '^[a-fA-F0-9]{64}$' -or
+                    $BiasMetadata.bias_sha256 -notmatch '^[a-fA-F0-9]{64}$' -or
+                    $BiasMetadata.k_rot -isnot [bool] -or $BiasMetadata.k_rot) {
+                    throw "KV bias metadata does not match the selected model, size, hashes, or unrotated basis. $Recalibrate"
+                }
+                if ($DryRun) {
+                    Write-Host "  KV bias: metadata filename/size checked; SHA256 verification is deferred until launch."
+                } else {
+                    Write-Host "  Verifying KV bias and model SHA256; reading the model weights can take several seconds."
+                    if ((Get-FileHash -LiteralPath $KvBias.FullName -Algorithm SHA256).Hash -ne $BiasMetadata.bias_sha256 -or
+                        (Get-FileHash -LiteralPath $Model.FullName -Algorithm SHA256).Hash -ne $BiasMetadata.model_sha256) {
+                        throw "KV bias or model SHA256 differs from the calibration metadata. $Recalibrate"
+                    }
+                }
+            } elseif ($Profile -in @("long", "max") -and -not $DryRun) {
+                throw "Profile '$Profile' requires model identity metadata '$MetadataPath'. $Recalibrate"
+            } else {
+                Write-Warning "KV bias has no identity metadata and its hashes have not been verified. $Recalibrate"
+            }
             # The bias is calibrated with K-rotation off; inference must match
             # (the loader rejects a mismatch by design). The finally block below
             # restores the prior value (the shell launcher execs in a child
