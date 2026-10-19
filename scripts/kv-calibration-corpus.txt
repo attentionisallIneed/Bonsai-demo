@@ -1,0 +1,87 @@
+Calibration text for a general-purpose local assistant. This synthetic material
+covers explanation, dialogue, source code, structured records and mathematics.
+For a specialized workload, replace it with a representative UTF-8 text corpus.
+
+The river starts as snowmelt above the tree line. In spring it carries sediment
+through a narrow valley, deposits sand behind a bend, and eventually joins a
+larger watershed. Engineers place gauges at several points to compare rainfall,
+water level and flow. A measurement is useful only when its units, timestamp and
+uncertainty are recorded. When a sensor is replaced, the maintenance record must
+explain the change so that a later reader can interpret the time series.
+
+用户：请检查备份任务是否成功，并说明下一步应该做什么。
+助手：昨晚的备份在凌晨两点三十分结束。日志显示第二个分卷重试了四次，
+因此应先校验文件数量和校验和，再执行一次恢复演练。只有能够恢复的数据
+才算完成备份。请保留最近一次验证成功的副本，并记录验证时间和恢复耗时。
+
+在整理长文档时，先识别问题、约束和证据，再提取能够支持结论的段落。
+日期相近并不意味着两件事存在因果关系。若报告中的金额分别以元和万元
+计量，应先统一单位再计算增长率。表格缺失的数字不能当作零处理；应说明
+缺失范围，并将已知事实、计算结果和仍需验证的假设分别写清楚。
+
+def rolling_mean(values, width):
+    if width <= 0:
+        raise ValueError("width must be positive")
+    total = 0.0
+    result = []
+    for index, value in enumerate(values):
+        total += value
+        if index >= width:
+            total -= values[index - width]
+        if index + 1 >= width:
+            result.append(total / width)
+    return result
+
+The implementation uses a running sum, so it takes linear time in the number of
+observations. Before deploying it, inspect how missing values and non-finite
+numbers should be handled. A useful test includes an empty input, a window
+larger than the input, and a short sequence for which the expected answer can be
+calculated by hand. Keep changes small enough that a reviewer can follow them.
+
+SELECT region, COUNT(DISTINCT orders.id) AS order_count,
+       SUM(order_items.quantity * order_items.unit_price) AS revenue
+FROM orders JOIN order_items ON orders.id = order_items.order_id
+WHERE orders.created_at >= '2026-01-01' AND orders.status = 'completed'
+GROUP BY region ORDER BY revenue DESC;
+
+{"order_id":48213,"customer":"Meridian Grid","currency":"CNY",
+ "items":[{"sku":"A-17","quantity":4,"unit_price":4200.0},
+          {"sku":"B-12","quantity":1,"unit_price":1200.0}],
+ "status":"completed","shipped":"2026-06-14","retry_count":0}
+
+Revenue increased from 42 million to 48.3 million, a change of 15 percent.
+Operating margin fell from 21.7 percent to 19.2 percent. The business can grow
+sales while earning less profit per unit of revenue. To understand the cause,
+compare product mix, freight charges, staffing and one-time expenses. Forecasts
+should show assumptions and a range rather than present one estimate as certain.
+
+To integrate x squared times sin(x), use integration by parts twice. Set u=x^2
+and dv=sin(x) dx. The result is -x^2 cos(x)+2x sin(x)+2cos(x)+C. Differentiate the
+expression to check the signs: the two terms involving x cos(x) cancel, as do
+the two terms involving sin(x), leaving x^2 sin(x). An independent check often
+finds an error faster than repeating the original calculation.
+
+The photographer waited for the clouds to move past the ridge. The first frame
+included a sign at the edge of the image; the second was cleaner but lost the
+small bridge that explained the scale of the valley. She chose the first image,
+reduced its highlights and wrote a caption giving the location and season.
+When reading a screenshot, preserve small text that changes the meaning of an
+error message. Ask for the full message if the image does not contain it.
+
+Die Bahn kam mit zwanzig Minuten Verspaetung an. Die Reisenden warteten unter
+dem Dach, waehrend ein leichter Regen auf den leeren Bahnsteig fiel. El informe
+debe indicar la fecha, las unidades y el origen de cada medida antes de comparar
+los resultados. Une conclusion doit distinguer les observations des hypotheses.
+
+Steps to reproduce: open Settings, disable hardware acceleration, restart the
+application, and load a project larger than two gigabytes. Record the frame rate
+and memory use before changing the preview quality. Compare one variable at a
+time, then restore the original configuration. A faster result is convincing
+only when the same input, output limit and measurement method are used.
+
+When a local inference server handles several conversations, prompt processing
+and token generation are different phases. A repeated prefix can be reused when
+its tokens and settings match. More context consumes more cache memory; reducing
+cache precision trades numerical error for capacity. Measure first-token delay,
+generation rate, completed output quality and peak memory separately. A sample
+that stops because it reaches the output limit has not demonstrated completion.

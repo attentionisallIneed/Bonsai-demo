@@ -9,7 +9,8 @@ $VenvPy  = Join-Path $VenvDir "Scripts\python.exe"
 
 # v7 binaries read the official group-64 Q2_0 files and PQ2_0; they do NOT read
 # the legacy *-Q2_0.gguf files that pre-v7 releases used.
-$ReleaseTag = "prism-b10772-e8fd209"
+$ReleaseTag = (Get-Content -LiteralPath (Join-Path $PSScriptRoot "scripts\llama-release.txt") -Raw).Trim()
+if ($ReleaseTag -notmatch '^prism-b\d+-[a-f0-9]+$') { throw "Invalid scripts/llama-release.txt" }
 $BaseUrl = "https://github.com/PrismML-Eng/llama.cpp/releases/download/$ReleaseTag"
 
 $BonsaiModel  = if ($env:BONSAI_MODEL)  { $env:BONSAI_MODEL }  else { "27B" }
@@ -405,7 +406,8 @@ if ($WinArch -eq "arm64" -and $GpuType -ne "cpu") {
 }
 
 # Refresh binaries when the pinned release changed (mirror of download_binaries.sh).
-# Remove any bin dir whose recorded release tag differs so it re-downloads below.
+# The CUDA updater handles its own atomic replacement; retain that directory
+# until both archives have been verified. Other backends retain the setup path.
 foreach ($binRelDir in @("bin\hip", "bin\cuda", "bin\vulkan", "bin\cpu")) {
     $binDir = Join-Path $PSScriptRoot $binRelDir
     if (-not (Test-Path $binDir)) {
@@ -418,7 +420,7 @@ foreach ($binRelDir in @("bin\hip", "bin\cuda", "bin\vulkan", "bin\cpu")) {
     # The stamp includes the CUDA variant so a resolver change (e.g. 12.4 -> 13.3)
     # refreshes an existing install of the same release.
     $expectedStamp = if ($GpuType -eq "cuda") { "$ReleaseTag cuda-$CudaTag" } else { $ReleaseTag }
-    if ($installedTag -ne $expectedStamp) {
+    if ($installedTag -ne $expectedStamp -and $binRelDir -ne "bin\cuda") {
         $was = if ($installedTag) { $installedTag } else { "an older/unknown release" }
         Write-Host "[WARN] Binaries in $binRelDir are $was; updating to $expectedStamp ..." -ForegroundColor Yellow
         Remove-Item -Recurse -Force $binDir
@@ -430,21 +432,8 @@ if ($GpuType -eq "hip") {
     Download-Binary "llama-${ReleaseTag}-bin-win-hip-radeon-x64.zip" $BinDir
 } elseif ($GpuType -eq "cuda") {
     $BinDir = Join-Path $PSScriptRoot "bin\cuda"
-    Download-Binary "llama-${ReleaseTag}-bin-win-cuda-${CudaTag}-x64.zip" $BinDir
-
-    # Also download CUDA runtime DLLs
-    $DllAsset = "cudart-llama-bin-win-cuda-${CudaTag}-x64.zip"
-    $DllUrl = "$BaseUrl/$DllAsset"
-    $DllZip = [System.IO.Path]::GetTempFileName() + ".zip"
-
-    Write-Host "    Downloading CUDA runtime DLLs ..." -ForegroundColor Cyan
-    try {
-        Invoke-WebRequest -Uri $DllUrl -OutFile $DllZip -UseBasicParsing
-        Expand-Archive -Path $DllZip -DestinationPath $BinDir -Force
-        Remove-Item $DllZip -Force
-    } catch {
-        Write-Host "[WARN] Could not download CUDA DLLs. You may need to install CUDA toolkit." -ForegroundColor Yellow
-    }
+    # Stage and verify the complete runtime before replacing a working install.
+    & (Join-Path $PSScriptRoot "scripts\download_cuda_bin.ps1") -CudaTag $CudaTag
 } elseif ($GpuType -eq "vulkan") {
     $BinDir = Join-Path $PSScriptRoot "bin\vulkan"
     Download-Binary "llama-${ReleaseTag}-bin-win-cpu-${WinArch}.zip" $BinDir "llama-cli.exe"

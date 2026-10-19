@@ -8,7 +8,9 @@ see [MODEL-FORMATS.md](MODEL-FORMATS.md); for measured performance, see
 
 ## Release baseline
 
-The demo pins **`prism-b10772-e8fd209`**. The SYCL source audit baseline remains
+The demo pins **`prism-b10777-e3de715`** in `scripts/llama-release.txt`. This includes
+the CUDA quantized K/V short-query Flash Attention fix ([#355](https://github.com/PrismML-Eng/llama.cpp/pull/355)).
+The SYCL source audit baseline remains
 **`prism-b10770-6684606`**.
 Vulkan was audited at **`prism-b10743-adfffbe`**; other backend rows retain the
 original **`prism-b10709-9a9394a`** audit.

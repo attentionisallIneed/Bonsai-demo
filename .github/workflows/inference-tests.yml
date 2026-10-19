@@ -1,0 +1,53 @@
+name: Inference tooling tests
+
+on:
+  push:
+    branches: [main, 'codex/**']
+    paths:
+      - 'scripts/**'
+      - 'tests/**'
+      - '*server*'
+      - 'setup.ps1'
+      - '.github/workflows/inference-tests.yml'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark-tools:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -X utf8 -m unittest discover -s tests -p 'test_benchmark*.py' -v
+
+  windows-runtime:
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -X utf8 -m unittest discover -s tests -p 'test_windows*.py' -v
+      - name: Runtime and calibration fixtures (PowerShell 7)
+        shell: pwsh
+        run: ./tests/test_runtime_windows.ps1
+      - name: Runtime and calibration fixtures (Windows PowerShell 5.1)
+        shell: powershell
+        run: ./tests/test_runtime_windows.ps1
+
+  shell-syntax:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash -n scripts/download_binaries.sh
