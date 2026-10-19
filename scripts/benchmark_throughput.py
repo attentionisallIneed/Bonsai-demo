@@ -2,7 +2,7 @@
 """Reproducible stdlib-only SSE benchmark for a local compatible chat server.
 
 Quick cell: python scripts/benchmark_throughput.py --modes off --concurrency 1
-    --requests 1 --max-tokens 256 --cache cold --output benchmark_results.json
+    --requests 1 --max-tokens 256 --cache cold
 
 Keys come from BONSAI_API_KEY or OPENAI_API_KEY, never reports. Latency includes
 the entire body. TTFT includes reasoning; first_content_sec measures the answer.
@@ -379,7 +379,8 @@ def parse_args(argv=None):
     parser.add_argument("--server-binary", help="optional executable to query with --version")
     parser.add_argument("--no-gpu-info", action="store_true", help="skip optional nvidia-smi snapshots")
     parser.add_argument("--label", default="", help="configuration label, for example 64k-f16-ub512")
-    parser.add_argument("--output", default="benchmark_results.json")
+    parser.add_argument("--output", default="performance-results/benchmark-throughput.json",
+                        help="full local report; default directory is gitignored")
     args = parser.parse_args(argv)
     try:
         args.base_url = normalize_base_url(args.base_url)
@@ -426,6 +427,7 @@ def main(argv=None):
     report = {"schema_version": 1, "run_id": run_id, "started_at": datetime.now(timezone.utc).isoformat(),
               "config": {key: value for key, value in vars(args).items() if key != "api_key"},
               "notes": ["latency and throughput include reading the entire response body",
+                        "raw report includes original prompts and generated content; review before sharing",
                         "length stops are truncated and excluded from completed-answer latency",
                         "cold = unique prefix + cache_prompt=false; warm = exact-prompt priming + cache_prompt=true",
                         "cache mode is requested behavior; inspect server timings for actual reuse",

@@ -235,6 +235,7 @@ class BenchmarkChecks(unittest.TestCase):
         self.assertEqual(args.modes, ["off", "medium"])
         self.assertEqual(args.api_key, "secret")
         self.assertEqual(args.requests, 6)
+        self.assertEqual(args.output, "performance-results/benchmark-throughput.json")
         with patch("sys.stderr", new_callable=io.StringIO):
             for argv in (["--concurrency", "2,4", "--requests", "6"], ["--base-url", "http://secret@localhost"],
                          ["--temperature", "nan"], ["--needle-words", "3"], ["--budget", "-2"]):

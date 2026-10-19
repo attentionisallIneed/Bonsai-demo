@@ -120,6 +120,14 @@ class ResultChecks(unittest.TestCase):
             with self.subTest(content=content):
                 self.assertFalse(context.parse_answer(content, expected)["passed"])
 
+    def test_duplicate_json_keys_cannot_hide_a_contradictory_value(self):
+        expected = context.Inventory(42, "id").expected
+        content = '{"beginning":"wrong",' + json.dumps(expected)[1:]
+        self.assertEqual(json.loads(content), expected)  # Standard parsing would conceal the error.
+        result = context.parse_answer(content, expected)
+        self.assertFalse(result["passed"])
+        self.assertIn("duplicate JSON key", result["error"])
+
     def test_actual_usage_not_configuration_or_correct_answer_is_required(self):
         self.assertTrue(self.validate(self.result())["passed"])
         for result in (self.result(usage={}),

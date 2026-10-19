@@ -194,8 +194,15 @@ def construct_input(corpus, counter, target, guard=8):
 
 
 def parse_answer(content, expected):
+    def unique_keys(pairs):
+        answer = {}
+        for key, value in pairs:
+            if key in answer:
+                raise ValueError(f"duplicate JSON key: {key}")
+            answer[key] = value
+        return answer
     try:
-        answer = json.loads(content.strip())
+        answer = json.loads(content.strip(), object_pairs_hook=unique_keys)
     except (ValueError, AttributeError) as error:
         return {"passed": False, "answer": None, "error": f"answer is not exact JSON: {error}"}
     return {"passed": answer == expected, "answer": answer, "expected": expected,
@@ -245,6 +252,7 @@ def run(config, client=None):
               "config": {key: value for key, value in vars(config).items() if key != "api_key"},
               "expected": corpus.expected, "passed": False, "turns": [],
               "notes": ["Synthetic three-position retrieval and history validation, not general long-context reasoning quality.",
+                        "Raw report contains synthetic prompt, generated content, and local runtime paths; review before sharing.",
                         "Actual usage is mandatory; loading the server alone cannot pass.",
                         "Cache counters report observed reuse only. An absent counter is not evidence of a cache hit."]}
     report["metadata_before"] = bench.metadata(config)

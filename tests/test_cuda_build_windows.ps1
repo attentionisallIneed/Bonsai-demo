@@ -166,3 +166,8 @@ if ($failed) { exit 1 }
         if (Test-Path -LiteralPath $resolved) { Remove-Item -LiteralPath $resolved -Recurse -Force }
     }
 }
+
+# GitHub Actions checks LASTEXITCODE after dot-sourcing a PowerShell step. The
+# final child intentionally fails; only clear its status after every assertion
+# and cleanup have succeeded, so a real fixture failure still fails the step.
+$global:LASTEXITCODE = 0
