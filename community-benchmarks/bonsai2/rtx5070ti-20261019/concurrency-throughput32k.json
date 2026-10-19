@@ -1,0 +1,1846 @@
+{
+  "schema_version": 1,
+  "run_id": "0feb6b0cdf014d38ba47ea293af64a7d",
+  "started_at": "2026-10-19T13:18:46.385421+00:00",
+  "config": {
+    "base_url": "http://127.0.0.1:18080",
+    "model": "bonsai",
+    "modes": [
+      "off"
+    ],
+    "concurrency": [
+      1,
+      2,
+      4
+    ],
+    "requests": 8,
+    "warmup": 1,
+    "repeat": 1,
+    "seed": 42,
+    "cache": "cold",
+    "max_tokens": 384,
+    "budget": null,
+    "temperature": 0.0,
+    "timeout": 600,
+    "prompt_file": null,
+    "needle_words": null,
+    "server_binary": ".\\bin\\cuda\\llama-server.exe",
+    "no_gpu_info": false,
+    "label": "new-b10777-throughput32k",
+    "output": "performance-results/concurrency-throughput32k.json"
+  },
+  "notes": [
+    "latency and throughput include reading the entire response body",
+    "raw report includes original prompts and generated content; review before sharing",
+    "length stops are truncated and excluded from completed-answer latency",
+    "cold = unique prefix + cache_prompt=false; warm = exact-prompt priming + cache_prompt=true",
+    "cache mode is requested behavior; inspect server timings for actual reuse",
+    "needle retrieval is a smoke test, not a general long-context quality benchmark"
+  ],
+  "metadata_before": {
+    "python": "3.12.11",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "gpu": {
+      "command": [
+        "C:\\Windows\\system32\\nvidia-smi.EXE",
+        "--query-gpu=index,name,driver_version,memory.total,memory.used,utilization.gpu",
+        "--format=csv,nounits"
+      ],
+      "returncode": 0,
+      "stdout": "index, name, driver_version, memory.total [MiB], memory.used [MiB], utilization.gpu [%]\n0, NVIDIA GeForce RTX 5070 Ti, 617.14, 16303, 11932, 1",
+      "stderr": ""
+    },
+    "props": {
+      "total_slots": 4,
+      "model_path": "C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-PQ2_0.gguf",
+      "model_alias": "C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-PQ2_0.gguf",
+      "build_info": "b10777-e3de71522",
+      "modalities": {
+        "vision": true,
+        "video": true,
+        "audio": false
+      },
+      "default_generation_settings": {
+        "n_ctx": 32768,
+        "params": {
+          "n_predict": -1,
+          "seed": 4294967295,
+          "temperature": 1.0,
+          "top_k": 20,
+          "top_p": 0.949999988079071,
+          "min_p": 0.05000000074505806
+        }
+      }
+    },
+    "server_version": {
+      "command": [
+        "C:\\projects\\llm-server\\bin\\cuda\\llama-server.exe",
+        "--version"
+      ],
+      "returncode": 0,
+      "stdout": "",
+      "stderr": "version: 0.2.0-dev (build 10777, commit e3de71522)\nbuilt with MSVC 19.44.35229.0 for Windows AMD64"
+    }
+  },
+  "prompts": [
+    {
+      "id": "builtin-1",
+      "prompt": "三个箱子贴着苹果、橘子、苹果和橘子的标签，所有标签都贴错了。只能从一个箱子取一个水果查看，应该选哪个箱子，如何确定全部内容？请解释。"
+    },
+    {
+      "id": "builtin-2",
+      "prompt": "高铁以300km/h从北京前往上海（相距1318km），动车以200km/h同时从上海前往北京。1.5小时后动车停靠20分钟。计算相遇时间及各自行驶距离。"
+    },
+    {
+      "id": "builtin-3",
+      "prompt": "大模型在手机和边缘计算盒子落地有哪些技术瓶颈？从硬件、量化算法、内存带宽三个维度说明优化路径。"
+    },
+    {
+      "id": "builtin-4",
+      "prompt": "100枚外观相同的金币中只有1枚较轻的假币。用没有砝码的天平，最少称量几次才能保证找出假币？给出分组策略和证明。"
+    }
+  ],
+  "cells": [
+    {
+      "mode": "off",
+      "concurrency": 1,
+      "repeat": 1,
+      "cache": "cold",
+      "summary": {
+        "total_requests": 8,
+        "success_count": 8,
+        "complete_count": 0,
+        "truncated_count": 8,
+        "error_count": 0,
+        "finish_reasons": {
+          "length": 8
+        },
+        "batch_wall_sec": 37.88327879999997,
+        "total_predicted_tokens": 3072,
+        "system_throughput_tps": 81.09118580306207,
+        "latency_sec": {
+          "count": 8,
+          "mean": 4.7353138000007675,
+          "p50": 4.734705300001224,
+          "p95": 4.756162505000248
+        },
+        "ttft_sec": {
+          "count": 8,
+          "mean": 0.20567803750054736,
+          "p50": 0.20546475000082864,
+          "p95": 0.22561408999990817
+        },
+        "first_content_sec": {
+          "count": 8,
+          "mean": 0.20567803750054736,
+          "p50": 0.20546475000082864,
+          "p95": 0.22561408999990817
+        },
+        "complete_latency_sec": {
+          "count": 0,
+          "mean": null,
+          "p50": null,
+          "p95": null
+        },
+        "server_decode_tps": {
+          "count": 8,
+          "mean": 84.55638027462977,
+          "p50": 84.54548304446215,
+          "p95": 84.6538933756575
+        },
+        "server_prompt_tps": {
+          "count": 8,
+          "mean": 993.8931035871304,
+          "p50": 983.8039587523599,
+          "p95": 1090.2214176185216
+        }
+      },
+      "warmup_results": [
+        {
+          "req_id": "warmup-0",
+          "prompt_id": "warmup",
+          "seed": 42,
+          "prompt_sha256": "90414ec3473d4448d404e6315853afd8d32b6128b2f3d5b38d4be998f9c6cd19",
+          "cache_marker": "94f680af07cb4a75b4813918da380898",
+          "success": true,
+          "complete": true,
+          "truncated": false,
+          "stream_done": true,
+          "body_complete": true,
+          "finish_reason": "stop",
+          "ttft_sec": 0.44875300000057905,
+          "first_content_sec": 0.44875300000057905,
+          "latency_sec": 0.4698184000008041,
+          "http_status": 200,
+          "event_count": 4,
+          "content": "OK",
+          "reasoning_content": "",
+          "tool_calls": [],
+          "usage": {
+            "completion_tokens": 2,
+            "prompt_tokens": 54,
+            "total_tokens": 56,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "timings": {
+            "cache_n": 0,
+            "prompt_n": 54,
+            "prompt_ms": 446.338,
+            "prompt_per_token_ms": 8.265518518518519,
+            "prompt_per_second": 120.98454534455949,
+            "predicted_n": 2,
+            "predicted_ms": 20.983,
+            "predicted_per_token_ms": 20.983,
+            "predicted_per_second": 47.657627603297904
+          },
+          "error": null,
+          "id": "chatcmpl-FKYCNiVTsf16k98PkoC1YtRjaoRwrEEU",
+          "model": "C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-PQ2_0.gguf",
+          "system_fingerprint": "b10777-e3de71522",
+          "content_chars": 2,
+          "reasoning_chars": 0,
+          "prompt_tokens": 54,
+          "predicted_tokens": 2
+        }
+      ],
+      "results": [
+        {
+          "req_id": 0,
+          "prompt_id": "builtin-3",
+          "seed": 42,
+          "prompt_sha256": "157838fe6a6690ad8cb4c137786ea0ac347e577c1fdfdf0f0c24d2a51619ed54",
+          "cache_marker": "3d1c325d292fc00b779ca715b2725af93c6017d52878859b90b634274d705150",
+          "success": true,
+          "complete": false,
+          "truncated": true,
+          "stream_done": true,
+          "body_complete": true,
+          "finish_reason": "length",
+          "ttft_sec": 0.1850309000001289,
+          "first_content_sec": 0.1850309000001289,
+          "latency_sec": 4.709025600001041,
+          "http_status": 200,
+          "event_count": 387,
+          "content": "大模型在手机（Mobile）和边缘计算盒子（Edge Box）的落地，核心挑战在于**算力受限、功耗敏感、内存带宽瓶颈**以及**热设计功率（TDP）限制**。与云端数据中心不同，边缘设备无法依赖高带宽HBM（高带宽内存）和海量显存，必须通过算法与硬件协同优化（Co-design）来实现可接受的推理延迟和吞吐量。\n\n以下从**硬件、量化算法、内存带宽**三个维度，详细解析技术瓶颈及优化路径：\n\n### 1. 硬件维度：算力密度与能效比（PPL）\n\n**技术瓶颈：**\n*   **NPU能力碎片化：** 手机NPU（如Apple Neural Engine, Qualcomm Hexagon, MediaTek APU）和边缘盒子NPU（如Jetson Orin, 瑞芯微RK3588, 海思AI芯片）架构差异巨大，缺乏统一的算子支持。\n*   **算力-能效墙：** 边缘设备受限于电池或散热，无法像GPU服务器那样持续高负载运行。大模型推理是“内存密集型”而非“算力密集型”，但现有NPU往往在低精度整数运算上能效比高，而在混合精度或浮点运算上能效比骤降。\n*   **内存容量限制：** 手机RAM通常为8-16GB，边缘盒子为8-32GB。7B参数模型即使4-bit量化后也需要~4GB显存，加上KV Cache和激活值，极易OOM（Out of Memory）。\n\n**优化路径：**\n*   **异构计算调度：** 开发智能调度器，将模型层动态分配到CPU、GPU、NPU。例如，将计算密集型层（如Attention中的矩阵乘法）放在NPU，将内存密集型层（如KV Cache管理）放在CPU/GPU",
+          "reasoning_content": "",
+          "tool_calls": [],
+          "usage": {
+            "completion_tokens": 384,
+            "prompt_tokens": 108,
+            "total_tokens": 492,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "timings": {
+            "cache_n": 0,
+            "prompt_n": 108,
+            "prompt_ms": 112.5,
+            "prompt_per_token_ms": 1.0416666666666667,
+            "prompt_per_second": 960.0,
+            "predicted_n": 384,
+            "predicted_ms": 4523.99,
+            "predicted_per_token_ms": 11.811984334203654,
+            "predicted_per_second": 84.65978041507607
+          },
+          "error": null,
+          "id": "chatcmpl-Sj6bPWTmw4viNVQCighp7oS4JqxLlfu9",
+          "model": "C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-PQ2_0.gguf",
+          "system_fingerprint": "b10777-e3de71522",
+          "content_chars": 709,
+          "reasoning_chars": 0,
+          "prompt_tokens": 108,
+          "predicted_tokens": 384
+        },
+        {
+          "req_id": 1,
+          "prompt_id": "builtin-2",
+          "seed": 43,
+          "prompt_sha256": "258b4004757802ac11337b81de81a7cbc5da6623c349edb5c6cac91814cbed62",
+          "cache_marker": "87c8423a091eb3edf7ff83b3593eb4ebb1f6fbf0b35ae9ee9083e84205a9c4ec",
+          "success": true,
+          "complete": false,
+          "truncated": true,
+          "stream_done": true,
+          "body_complete": true,
+          "finish_reason": "length",
+          "ttft_sec": 0.21870029999990948,
+          "first_content_sec": 0.21870029999990948,
+          "latency_sec": 4.748946399999113,
+          "http_status": 200,
+          "event_count": 387,
+          "content": "这是一个经典的相对运动问题，但包含了一个“停靠”环节，因此需要分阶段计算。\n\n**已知条件：**\n*   高铁速度 $v_1 = 300$ km/h\n*   动车速度 $v_2 = 200$ km/h\n*   总距离 $D = 1318$ km\n*   出发时间：同时出发\n*   动车停靠规则：行驶 1.5 小时后，停靠 20 分钟（即 $\\frac{1}{3}$ 小时）。\n\n**步骤 1：判断相遇发生在哪个阶段**\n\n首先，计算在动车停靠之前（即前 1.5 小时）两车行驶的距离和剩余距离。\n\n*   **高铁在 1.5 小时内行驶的距离：**\n    $$d_{1a} = v_1 \\times t_a = 300 \\text{ km/h} \\times 1.5 \\text{ h} = 450 \\text{ km}$$\n\n*   **动车在 1.5 小时内行驶的距离：**\n    $$d_{2a} = v_2 \\times t_a = 200 \\text{ km/h} \\times 1.5 \\text{ h} = 300 \\text{ km}$$\n\n*   **两车在 1.5 小时结束时相距的距离：**\n    $$D_{remaining} = D - (d_{1a} + d_{2a}) = 1318 - (450 + 300) = 1318 - 750 = 568 \\text{ km}$$\n\n此时，动车开始停靠 20 分钟（$\\frac{1}{3}$ ",
+          "reasoning_content": "",
+          "tool_calls": [],
+          "usage": {
+            "completion_tokens": 384,
+            "prompt_tokens": 125,
+            "total_tokens": 509,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "timings": {
+            "cache_n": 0,
+            "prompt_n": 125,
+            "prompt_ms": 111.874,
+            "prompt_per_token_ms": 0.894992,
+            "prompt_per_second": 1117.3284230473569,
+            "predicted_n": 384,
+            "predicted_ms": 4530.08,
+            "predicted_per_token_ms": 11.827885117493473,
+            "predicted_per_second": 84.54596828312083
+          },
+          "error": null,
+          "id": "chatcmpl-09rtJntZMeYsGz4nVMy8sg7NmaPRTlEQ",
+          "model": "C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-PQ2_0.gguf",
+          "system_fingerprint": "b10777-e3de71522",
+          "content_chars": 638,
+          "reasoning_chars": 0,
+          "prompt_tokens": 125,
+          "predicted_tokens": 384
+        },
+        {
+          "req_id": 2,
+          "prompt_id": "builtin-4",
+          "seed": 44,
+          "prompt_sha256": "7ffaf9b75aabd3b69f67d011df649c3eb642c315ddc749d5b2245217dd7e1f9e",
+          "cache_marker": "f2bf0fa4babff8ec0333bee64b499172edfd5dc1e1525b333e989c38b7fd0011",
+          "success": true,
+          "complete": false,
+          "truncated": true,
+          "stream_done": true,
+          "body_complete": true,
+          "finish_reason": "length",
+          "ttft_sec": 0.19326120000187075,
+          "first_content_sec": 0.19326120000187075,
+          "latency_sec": 4.722615300001053,
+          "http_status": 200,
+          "event_count": 387,
+          "content": "### 结论\n最少称量 **4** 次。\n\n### 分组策略\n将 100 枚金币分为三组，尽量平均分配，但需满足每组数量不超过 $3^k$（其中 $k$ 为剩余称量次数）。具体步骤如下：\n\n**第 1 次称量：**\n将 100 枚金币分为三组：\n- A 组：33 枚\n- B 组：33 枚\n- C 组：34 枚\n\n将 A 组与 B 组放在天平两端。\n- **情况 1：天平平衡**\n  假币在 C 组（34 枚）。\n- **情况 2：天平不平衡**\n  假币在较轻的那一组（A 组或 B 组，共 33 枚）。\n\n**第 2 次称量：**\n根据第 1 次结果，将嫌疑组（33 枚或 34 枚）再次分为三组。\n- **若嫌疑组为 33 枚**：分为 11, 11, 11。称量前两组。\n  - 平衡：假币在第 3 组（11 枚）。\n  - 不平衡：假币在较轻的那组（11 枚）。\n- **若嫌疑组为 34 枚**：分为 11, 11, 12。称量前两组。\n  - 平衡：假币在第 3 组（12 枚）。\n  - 不平衡：假币在较轻的那组（11 枚）。\n\n无论哪种情况，经过第 2 次称量后，嫌疑范围缩小至",
+          "reasoning_content": "",
+          "tool_calls": [],
+          "usage": {
+            "completion_tokens": 384,
+            "prompt_tokens": 111,
+            "total_tokens": 495,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "timings": {
+            "cache_n": 0,
+            "prompt_n": 111,
+            "prompt_ms": 113.329,
+            "prompt_per_token_ms": 1.0209819819819819,
+            "prompt_per_second": 979.449214234662,
+            "predicted_n": 384,
+            "predicted_ms": 4529.23,
+            "predicted_per_token_ms": 11.825665796344646,
+            "predicted_per_second": 84.56183501389862
+          },
+          "error": null,
+          "id": "chatcmpl-lcOFmsucweUUvCRlUKYXTyNJu6CqykFc",
+          "model": "C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-PQ2_0.gguf",
+          "system_fingerprint": "b10777-e3de71522",
+          "content_chars": 499,
+          "reasoning_chars": 0,
+          "prompt_tokens": 111,
+          "predicted_tokens": 384
+        },
+        {
+          "req_id": 3,
+          "prompt_id": "builtin-1",
+          "seed": 45,
+          "prompt_sha256": "7db2c342651a38c965bf6783b080f64ccf252b8277fc42422d4f6e28b44feca6",
+          "cache_marker": "dd4581d6659b375f6702c37aa73d9c09aa92f62eb05aa40f38db8e91a3939886",
+          "success": true,
+          "complete": false,
+          "truncated": true,
+          "stream_done": true,
+          "body_complete": true,
+          "finish_reason": "length",
+          "ttft_sec": 0.20697220000147354,
+          "first_content_sec": 0.20697220000147354,
+          "latency_sec": 4.731875299999956,
+          "http_status": 200,
+          "event_count": 387,
+          "content": "这是一个经典的逻辑推理问题。关键在于利用“**所有标签都贴错了**”这一条件。\n\n### 1. 分析情况\n- 有三个箱子，实际内容分别是：苹果、橘子、苹果（注意：题目说“三个箱子贴着苹果、橘子、苹果和橘子的标签”，这里表述略有歧义，通常这类题目是三个箱子分别装有苹果、橘子、混合（或另一种水果），但根据“苹果、橘子、苹果和橘子”的标签描述，更合理的理解是：\n  - 箱子 A 标签：苹果\n  - 箱子 B 标签：橘子\n  - 箱子 C 标签：苹果（或混合？题目说“苹果、橘子、苹果和橘子”，共四个词，但只有三个箱子。重新审视题目：“三个箱子贴着苹果、橘子、苹果和橘子的标签”——这很可能是一个笔误，通常标准题目是三个箱子标签分别为“苹果”、“橘子”、“混合”或“苹果”、“橘子”、“其他”。\n  \n  **修正理解**：根据经典逻辑题的标准形式，以及“苹果、橘子、苹果和橘子”的标签描述，最可能的情况是：\n  - 箱子 1 标签：**苹果**\n  - 箱子 2 标签：**橘子**\n  - 箱子 3 标签：**苹果**（或“混合”？但题目明确写了“苹果、橘子、苹果和橘子”，共4个标签词，3个箱子。这非常奇怪。）\n\n  **再仔细读题**：“三个箱子贴着苹果、橘子、苹果和橘子的标签”。\n  这通常意味着：\n  - 箱子 A 标签：苹果\n  - 箱子 B 标签：橘子\n  - 箱子 C 标签：苹果\n  - 还有一个“橘子”？不对，只有",
+          "reasoning_content": "",
+          "tool_calls": [],
+          "usage": {
+            "completion_tokens": 384,
+            "prompt_tokens": 117,
+            "total_tokens": 501,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "timings": {
+            "cache_n": 0,
+            "prompt_n": 117,
+            "prompt_ms": 112.513,
+            "prompt_per_token_ms": 0.9616495726495727,
+            "prompt_per_second": 1039.8798361078275,
+            "predicted_n": 384,
+            "predicted_ms": 4524.889,
+            "predicted_per_token_ms": 11.814331592689296,
+            "predicted_per_second": 84.64296030245161
+          },
+          "error": null,
+          "id": "chatcmpl-8K4ubbeJe7WSyezzOHJsk9YI7Qejhd8U",
+          "model": "C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-PQ2_0.gguf",
+          "system_fingerprint": "b10777-e3de71522",
+          "content_chars": 617,
+          "reasoning_chars": 0,
+          "prompt_tokens": 117,
+          "predicted_tokens": 384
+        },
+        {
+          "req_id": 4,
+          "prompt_id": "builtin-3",
+          "seed": 46,
+          "prompt_sha256": "5ae0be27160bb7ef115c144b00cf771f4ef30e385fea3ec7419c15bb5013294f",
+          "cache_marker": "ab89e201712c00f5b555215089c75178b766d8ff5b3496dd463c6ce11ba93894",
+          "success": true,
+          "complete": false,
+          "truncated": true,
+          "stream_done": true,
+          "body_complete": true,
+          "finish_reason": "length",
+          "ttft_sec": 0.19777780000003986,
+          "first_content_sec": 0.19777780000003986,
+          "latency_sec": 4.732031600000482,
+          "http_status": 200,
+          "event_count": 387,
+          "content": "大模型在手机（Mobile）和边缘计算盒子（Edge Box）的落地，核心挑战在于**算力受限、功耗敏感、内存带宽瓶颈**以及**热设计功率（TDP）限制**。与云端数据中心不同，边缘设备无法依赖高带宽HBM（高带宽内存）和海量显存，必须通过算法与硬件协同优化（Co-design）来实现可接受的推理延迟和吞吐量。\n\n以下从**硬件、量化算法、内存带宽**三个维度，详细解析技术瓶颈及优化路径：\n\n### 1. 硬件维度：算力密度与能效比（PPL）\n\n**技术瓶颈：**\n*   **NPU 算力碎片化：** 手机NPU（如Apple Neural Engine, Qualcomm Hexagon, MediaTek APU）和边缘盒子NPU（如Jetson Orin, 瑞芯微RK3588）的架构差异巨大，缺乏统一的算子支持。许多标准算子（如Flash Attention、复杂KV Cache管理）在NPU上效率极低，导致频繁回退到CPU/GPU，造成性能断崖。\n*   **内存容量限制：** 手机RAM通常为8-16GB，边缘盒子为8-32GB。大模型（如7B-13B参数）的权重本身就需要数GB内存，加上KV Cache和激活值，极易导致OOM（Out of Memory）。\n*   **散热与功耗墙：** 边缘设备散热能力有限，持续高负载会导致降频（Throttling），使得理论峰值算力无法转化为实际持续算力。\n\n**优化路径：**\n*   **模型剪枝与结构优化：**\n    *   采用**MoE（Mixture of Experts）**架构，仅激活部分专家头，降低实际计算量。\n    *   使用**LoRA/QLoRA**",
+          "reasoning_content": "",
+          "tool_calls": [],
+          "usage": {
+            "completion_tokens": 384,
+            "prompt_tokens": 105,
+            "total_tokens": 489,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "timings": {
+            "cache_n": 0,
+            "prompt_n": 105,
+            "prompt_ms": 118.299,
+            "prompt_per_token_ms": 1.126657142857143,
+            "prompt_per_second": 887.5814672989627,
+            "predicted_n": 384,
+            "predicted_ms": 4534.153,
+            "predicted_per_token_ms": 11.838519582245432,
+            "predicted_per_second": 84.47002119249174
+          },
+          "error": null,
+          "id": "chatcmpl-PxGNkX2jbo7gz2PrAI670EX9Qesstp4R",
+          "model": "C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-PQ2_0.gguf",
+          "system_fingerprint": "b10777-e3de71522",
+          "content_chars": 728,
+          "reasoning_chars": 0,
+          "prompt_tokens": 105,
+          "predicted_tokens": 384
+        },
+        {
+          "req_id": 5,
+          "prompt_id": "builtin-2",
+          "seed": 47,
+          "prompt_sha256": "acbbafae47fae114fba0fc063ea90e84994b71b6c9aac095df538622ea49f1fa",
+          "cache_marker": "1e5fdb8dec9a6a546200c2901a8e464894ae690c9f0c7a10ca2515b86b3afca1",
+          "success": true,
+          "complete": false,
+          "truncated": true,
+          "stream_done": true,
+          "body_complete": true,
+          "finish_reason": "length",
+          "ttft_sec": 0.20395730000018375,
+          "first_content_sec": 0.20395730000018375,
+          "latency_sec": 4.737379000001965,
+          "http_status": 200,
+          "event_count": 387,
+          "content": "这是一个经典的相对运动问题，但包含了一个“停靠”环节，因此需要分阶段计算。\n\n**已知条件：**\n*   高铁速度 $v_1 = 300$ km/h\n*   动车速度 $v_2 = 200$ km/h\n*   总距离 $D = 1318$ km\n*   出发时间：同时出发\n*   动车停靠规则：行驶 1.5 小时后，停靠 20 分钟（即 $\\frac{1}{3}$ 小时）。\n\n**步骤 1：判断相遇发生在哪个阶段**\n\n首先，计算在动车停靠之前（即前 1.5 小时）两车行驶的距离和剩余距离。\n\n*   **高铁在 1.5 小时内行驶的距离：**\n    $$d_{1a} = v_1 \\times t_a = 300 \\times 1.5 = 450 \\text{ km}$$\n*   **动车在 1.5 小时内行驶的距离：**\n    $$d_{2a} = v_2 \\times t_a = 200 \\times 1.5 = 300 \\text{ km}$$\n*   **两车合计行驶的距离：**\n    $$d_{total\\_a} = 450 + 300 = 750 \\text{ km}$$\n*   **此时剩余距离：**\n    $$D_{remaining} = 1318 - 750 = 568 \\text{ km}$$\n\n**步骤 2：分析停靠阶段**\n\n*   动车在 $t = 1.5$ 小时时开始停靠。\n*   停靠时间 $t_{stop} = ",
+          "reasoning_content": "",
+          "tool_calls": [],
+          "usage": {
+            "completion_tokens": 384,
+            "prompt_tokens": 127,
+            "total_tokens": 511,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "timings": {
+            "cache_n": 0,
+            "prompt_n": 127,
+            "prompt_ms": 124.708,
+            "prompt_per_token_ms": 0.9819527559055118,
+            "prompt_per_second": 1018.378933187927,
+            "predicted_n": 384,
+            "predicted_ms": 4533.147,
+            "predicted_per_token_ms": 11.835892950391644,
+            "predicted_per_second": 84.48876685446115
+          },
+          "error": null,
+          "id": "chatcmpl-oEufLQjHGRBfwlksgjDNen4AR2cD2u2X",
+          "model": "C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-PQ2_0.gguf",
+          "system_fingerprint": "b10777-e3de71522",
+          "content_chars": 637,
+          "reasoning_chars": 0,
+          "prompt_tokens": 127,
+          "predicted_tokens": 384
+        },
+        {
+          "req_id": 6,
+          "prompt_id": "builtin-4",
+          "seed": 48,
+          "prompt_sha256": "7e8a2b61bce456ca0d44fef7777d86ecef94fede07a938d835223fa2b69092bb",
+          "cache_marker": "cdc5d7e5d1889cfcd7f6ee460b543d9937f8bf21399df11a9bf0d10b5d1c624f",
+          "success": true,
+          "complete": false,
+          "truncated": true,
+          "stream_done": true,
+          "body_complete": true,
+          "finish_reason": "length",
+          "ttft_sec": 0.21038770000086515,
+          "first_content_sec": 0.21038770000086515,
+          "latency_sec": 4.740589100001671,
+          "http_status": 200,
+          "event_count": 387,
+          "content": "### 结论\n最少称量 **4** 次。\n\n### 分组策略\n将 100 枚金币分为三组，尽量平均分配，但需满足每组数量不超过 $3^k$（其中 $k$ 为剩余称量次数）。具体步骤如下：\n\n**第 1 次称量：**\n将 100 枚金币分为三组：\n- A 组：33 枚\n- B 组：33 枚\n- C 组：34 枚\n\n将 A 组与 B 组放在天平两端。\n- **情况 1：天平平衡**\n  假币在 C 组（34 枚）。\n- **情况 2：天平不平衡**\n  假币在较轻的那一组（A 组或 B 组，共 33 枚）。\n\n**第 2 次称量：**\n根据第 1 次结果，将嫌疑组（33 枚或 34 枚）再次分为三组。\n- **若嫌疑组为 33 枚**：分为 11, 11, 11。称量前两组。\n  - 平衡：假币在第 3 组（11 枚）。\n  - 不平衡：假币在较轻的那组（11 枚）。\n- **若嫌疑组为 34 枚**：分为 11, 11, 12。称量前两组。\n  - 平衡：假币在第 3 组（12 枚）。\n  - 不平衡：假币在较轻的那组（11 枚）。\n\n无论哪种情况，经过第 2 次称量后，嫌疑范围缩小至",
+          "reasoning_content": "",
+          "tool_calls": [],
+          "usage": {
+            "completion_tokens": 384,
+            "prompt_tokens": 116,
+            "total_tokens": 500,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "timings": {
+            "cache_n": 0,
+            "prompt_n": 116,
+            "prompt_ms": 120.787,
+            "prompt_per_token_ms": 1.0412672413793105,
+            "prompt_per_second": 960.3682515502496,
+            "predicted_n": 384,
+            "predicted_ms": 4530.132,
+            "predicted_per_token_ms": 11.828020887728458,
+            "predicted_per_second": 84.54499780580346
+          },
+          "error": null,
+          "id": "chatcmpl-IsdxI1o1VMvWmT1VeNBkjiW2eB1xO7Xc",
+          "model": "C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-PQ2_0.gguf",
+          "system_fingerprint": "b10777-e3de71522",
+          "content_chars": 499,
+          "reasoning_chars": 0,
+          "prompt_tokens": 116,
+          "predicted_tokens": 384
+        },
+        {
+          "req_id": 7,
+          "prompt_id": "builtin-1",
+          "seed": 49,
+          "prompt_sha256": "603aa80c3f6d5483e45c98652cedb13775218d658fbfc2d8ff15f2a2b9b9df83",
+          "cache_marker": "f56bd384b2dc137d14d860f4d923f36c6d47e615a8605e7fa0a529ad898a04b4",
+          "success": true,
+          "complete": false,
+          "truncated": true,
+          "stream_done": true,
+          "body_complete": true,
+          "finish_reason": "length",
+          "ttft_sec": 0.22933689999990747,
+          "first_content_sec": 0.22933689999990747,
+          "latency_sec": 4.7600481000008585,
+          "http_status": 200,
+          "event_count": 387,
+          "content": "这是一个经典的逻辑推理问题。\n\n### 1. 分析条件\n*   **三个箱子**：分别贴有标签“苹果”、“橘子”、“苹果和橘子”（混合）。\n*   **关键约束**：**所有标签都贴错了**。这意味着：\n    *   贴“苹果”标签的箱子里**不是**纯苹果。\n    *   贴“橘子”标签的箱子里**不是**纯橘子。\n    *   贴“苹果和橘子”标签的箱子里**不是**混合水果（即它是纯苹果或纯橘子）。\n\n### 2. 策略选择\n你应该选择 **贴有“苹果和橘子”标签的箱子** 来取一个水果查看。\n\n### 3. 推理过程\n\n**第一步：查看“苹果和橘子”标签的箱子**\n由于所有标签都错了，这个箱子里**不可能**是混合水果。因此，它里面要么是**纯苹果**，要么是**纯橘子**。\n\n*   **情况 A：你取出的水果是苹果**\n    *   既然这个箱子是纯苹果，那么它的真实内容就是“苹果”。\n    *   现在剩下两个箱子：贴“苹果”标签的箱子和贴“橘子”标签的箱子。\n    *   我们知道贴“苹果”标签的箱子**不能**是苹果（因为标签错了），也不能是混合（因为混合的那个箱子已经被确定为纯苹果了）。所以，贴“苹果”标签的箱子只能是**橘子**。\n    *   最后剩下的贴“橘子”标签的箱子，只能是**混合**（苹果和橘子）。\n    *   **结论**：\n        *   “苹果和橘子”标签箱 → **纯苹果**\n        *   “苹果”标签箱 → **纯橘子**\n        *   “",
+          "reasoning_content": "",
+          "tool_calls": [],
+          "usage": {
+            "completion_tokens": 384,
+            "prompt_tokens": 119,
+            "total_tokens": 503,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "timings": {
+            "cache_n": 0,
+            "prompt_n": 119,
+            "prompt_ms": 120.426,
+            "prompt_per_token_ms": 1.011983193277311,
+            "prompt_per_second": 988.1587032700578,
+            "predicted_n": 384,
+            "predicted_ms": 4530.576,
+            "predicted_per_token_ms": 11.829180156657964,
+            "predicted_per_second": 84.53671232973467
+          },
+          "error": null,
+          "id": "chatcmpl-c1AuGTf9faKV6lzltyZz0dxATn2skMkL",
+          "model": "C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-PQ2_0.gguf",
+          "system_fingerprint": "b10777-e3de71522",
+          "content_chars": 675,
+          "reasoning_chars": 0,
+          "prompt_tokens": 119,
+          "predicted_tokens": 384
+        }
+      ],
+      "gpu_before": {
+        "command": [
+          "C:\\Windows\\system32\\nvidia-smi.EXE",
+          "--query-gpu=index,name,driver_version,memory.total,memory.used,utilization.gpu",
+          "--format=csv,nounits"
+        ],
+        "returncode": 0,
+        "stdout": "index, name, driver_version, memory.total [MiB], memory.used [MiB], utilization.gpu [%]\n0, NVIDIA GeForce RTX 5070 Ti, 617.14, 16303, 12036, 11",
+        "stderr": ""
+      },
+      "gpu_after": {
+        "command": [
+          "C:\\Windows\\system32\\nvidia-smi.EXE",
+          "--query-gpu=index,name,driver_version,memory.total,memory.used,utilization.gpu",
+          "--format=csv,nounits"
+        ],
+        "returncode": 0,
+        "stdout": "index, name, driver_version, memory.total [MiB], memory.used [MiB], utilization.gpu [%]\n0, NVIDIA GeForce RTX 5070 Ti, 617.14, 16303, 12038, 95",
+        "stderr": ""
+      }
+    },
+    {
+      "mode": "off",
+      "concurrency": 2,
+      "repeat": 1,
+      "cache": "cold",
+      "summary": {
+        "total_requests": 8,
+        "success_count": 8,
+        "complete_count": 0,
+        "truncated_count": 8,
+        "error_count": 0,
+        "finish_reasons": {
+          "length": 8
+        },
+        "batch_wall_sec": 23.491440399997373,
+        "total_predicted_tokens": 3072,
+        "system_throughput_tps": 130.7710360749247,
+        "latency_sec": {
+          "count": 8,
+          "mean": 5.872665087500536,
+          "p50": 5.920012599999609,
+          "p95": 6.000224545002675
+        },
+        "ttft_sec": {
+          "count": 8,
+          "mean": 0.5634206500003529,
+          "p50": 0.6031200500001432,
+          "p95": 0.701185390001774
+        },
+        "first_content_sec": {
+          "count": 8,
+          "mean": 0.5634206500003529,
+          "p50": 0.6031200500001432,
+          "p95": 0.701185390001774
+        },
+        "complete_latency_sec": {
+          "count": 0,
+          "mean": null,
+          "p50": null,
+          "p95": null
+        },
+        "server_decode_tps": {
+          "count": 8,
+          "mean": 72.14380172041587,
+          "p50": 72.15361761082798,
+          "p95": 72.27978315158057
+        },
+        "server_prompt_tps": {
+          "count": 8,
+          "mean": 489.72629788274764,
+          "p50": 522.5026057012111,
+          "p95": 545.8501738852384
+        }
+      },
+      "warmup_results": [
+        {
+          "req_id": "warmup-0",
+          "prompt_id": "warmup",
+          "seed": 42,
+          "prompt_sha256": "dd62279d557ea240caec7a0126179259f2688e02879f2b2ec6b4d6b5763febe2",
+          "cache_marker": "657fd2c9950a41b0bccccac4753c647b",
+          "success": true,
+          "complete": true,
+          "truncated": false,
+          "stream_done": true,
+          "body_complete": true,
+          "finish_reason": "stop",
+          "ttft_sec": 0.22139719999904628,
+          "first_content_sec": 0.22139719999904628,
+          "latency_sec": 0.24272209999980987,
+          "http_status": 200,
+          "event_count": 4,
+          "content": "OK",
+          "reasoning_content": "",
+          "tool_calls": [],
+          "usage": {
+            "completion_tokens": 2,
+            "prompt_tokens": 52,
+            "total_tokens": 54,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "timings": {
+            "cache_n": 0,
+            "prompt_n": 52,
+            "prompt_ms": 107.525,
+            "prompt_per_token_ms": 2.067788461538462,
+            "prompt_per_second": 483.6084631481051,
+            "predicted_n": 2,
+            "predicted_ms": 21.235,
+            "predicted_per_token_ms": 21.235,
+            "predicted_per_second": 47.09206498704968
+          },
+          "error": null,
+          "id": "chatcmpl-CtCMt6hXTwnpIo3ASggO84GGel15TyFa",
+          "model": "C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-PQ2_0.gguf",
+          "system_fingerprint": "b10777-e3de71522",
+          "content_chars": 2,
+          "reasoning_chars": 0,
+          "prompt_tokens": 52,
+          "predicted_tokens": 2
+        }
+      ],
+      "results": [
+        {
+          "req_id": 0,
+          "prompt_id": "builtin-3",
+          "seed": 42,
+          "prompt_sha256": "bdde80f8717df1c2abca7d63b423271622e678eb50c0a3f540d038ec25817897",
+          "cache_marker": "7d9d85f9fa9619cadd2eb55961e45011ae020ff74db0922803fb750cb8339ab1",
+          "success": true,
+          "complete": false,
+          "truncated": true,
+          "stream_done": true,
+          "body_complete": true,
+          "finish_reason": "length",
+          "ttft_sec": 0.34635290000005625,
+          "first_content_sec": 0.34635290000005625,
+          "latency_sec": 5.650881699999445,
+          "http_status": 200,
+          "event_count": 387,
+          "content": "大模型在手机（Mobile）和边缘计算盒子（Edge Box）的落地，核心挑战在于**算力受限、功耗敏感、内存带宽瓶颈**以及**热设计功率（TDP）限制**。与云端数据中心不同，边缘设备无法依赖高带宽HBM（高带宽内存）和海量显存，必须通过算法与硬件协同优化（Co-design）来实现高效推理。\n\n以下从**硬件、量化算法、内存带宽**三个维度，详细解析技术瓶颈及优化路径：\n\n### 1. 硬件维度：算力密度与能效比（PPL）\n\n**技术瓶颈：**\n*   **NPU能力碎片化：** 手机NPU（如Apple Neural Engine, Qualcomm Hexagon, MediaTek APU）和边缘盒子NPU（如Jetson Orin, 瑞芯微RK3588）架构差异巨大，缺乏统一的算子支持，导致模型移植困难。\n*   **算力-能效墙：** 边缘设备受限于电池或散热，无法像GPU服务器那样持续高负载运行。大模型推理是“内存密集型”而非“算力密集型”，单纯堆叠NPU算力往往无法线性提升吞吐，反而导致发热失控。\n*   **内存容量限制：** 手机RAM通常为8-16GB，边缘盒子为8-32GB。7B参数模型即使INT8量化后也需约7GB显存，加上KV Cache和激活值，极易OOM（Out of Memory）。\n\n**优化路径：**\n*   **异构计算调度：** 开发智能调度器，将计算密集型层（如Attention中的矩阵乘法）分配给NPU/GPU，将内存密集型层（如Embedding、KV Cache读写）分配给CPU或专用DRAM，利用各单元优势。\n*   **模型剪枝与蒸馏：** 在部署前进行",
+          "reasoning_content": "",
+          "tool_calls": [],
+          "usage": {
+            "completion_tokens": 384,
+            "prompt_tokens": 101,
+            "total_tokens": 485,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "timings": {
+            "cache_n": 0,
+            "prompt_n": 101,
+            "prompt_ms": 264.483,
+            "prompt_per_token_ms": 2.618643564356436,
+            "prompt_per_second": 381.87709607044684,
+            "predicted_n": 384,
+            "predicted_ms": 5303.526,
+            "predicted_per_token_ms": 13.84732637075718,
+            "predicted_per_second": 72.21610679385752
+          },
+          "error": null,
+          "id": "chatcmpl-W9szG5hDvOguO5E2Moo31GBnJ9ISRXEh",
+          "model": "C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-PQ2_0.gguf",
+          "system_fingerprint": "b10777-e3de71522",
+          "content_chars": 717,
+          "reasoning_chars": 0,
+          "prompt_tokens": 101,
+          "predicted_tokens": 384
+        },
+        {
+          "req_id": 1,
+          "prompt_id": "builtin-2",
+          "seed": 43,
+          "prompt_sha256": "7cdae566f5df682d134d754f4dab6b1aa86dae413c3cbcf7b7262218e562b4ee",
+          "cache_marker": "3b132eeffeb6502b81bd86b8b15cfe7463fbbbeda1b4df1253ee4bd69cf37ac8",
+          "success": true,
+          "complete": false,
+          "truncated": true,
+          "stream_done": true,
+          "body_complete": true,
+          "finish_reason": "length",
+          "ttft_sec": 0.3461171999988437,
+          "first_content_sec": 0.3461171999988437,
+          "latency_sec": 5.650280800000473,
+          "http_status": 200,
+          "event_count": 387,
+          "content": "这是一个经典的相对运动问题，但包含了一个“停靠”环节，因此需要分阶段计算。\n\n**已知条件：**\n*   高铁速度 $v_1 = 300$ km/h\n*   动车速度 $v_2 = 200$ km/h\n*   总距离 $D = 1318$ km\n*   出发时间：同时出发\n*   动车停靠规则：行驶 1.5 小时后，停靠 20 分钟（即 $\\frac{1}{3}$ 小时）。\n\n**步骤 1：判断相遇发生在哪个阶段**\n\n首先，计算在动车停靠之前（即前 1.5 小时）两车行驶的距离和剩余距离。\n\n*   **高铁在 1.5 小时内行驶的距离：**\n    $$d_{1a} = v_1 \\times t_a = 300 \\text{ km/h} \\times 1.5 \\text{ h} = 450 \\text{ km}$$\n\n*   **动车在 1.5 小时内行驶的距离：**\n    $$d_{2a} = v_2 \\times t_a = 200 \\text{ km/h} \\times 1.5 \\text{ h} = 300 \\text{ km}$$\n\n*   **两车合计行驶的距离：**\n    $$d_{total\\_a} = 450 + 300 = 750 \\text{ km}$$\n\n*   **此时剩余距离：**\n    $$D_{remaining} = 1318 - 750 = 568 \\text{ km}$$\n\n**结论：** 在 1.5 小时结束时，两车尚未相遇（因为 $",
+          "reasoning_content": "",
+          "tool_calls": [],
+          "usage": {
+            "completion_tokens": 384,
+            "prompt_tokens": 121,
+            "total_tokens": 505,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "timings": {
+            "cache_n": 0,
+            "prompt_n": 121,
+            "prompt_ms": 264.588,
+            "prompt_per_token_ms": 2.1866776859504133,
+            "prompt_per_second": 457.3147686214038,
+            "predicted_n": 384,
+            "predicted_ms": 5303.911,
+            "predicted_per_token_ms": 13.848331592689295,
+            "predicted_per_second": 72.21086477506881
+          },
+          "error": null,
+          "id": "chatcmpl-Og7R2NB5YpxtknugGqUALiaqMALHI0P8",
+          "model": "C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-PQ2_0.gguf",
+          "system_fingerprint": "b10777-e3de71522",
+          "content_chars": 652,
+          "reasoning_chars": 0,
+          "prompt_tokens": 121,
+          "predicted_tokens": 384
+        },
+        {
+          "req_id": 2,
+          "prompt_id": "builtin-4",
+          "seed": 44,
+          "prompt_sha256": "dcdacaf22b117ea1f95ab1aa55f72ef1d102c9eeb4fc17c6bc09442cdbf1b067",
+          "cache_marker": "8c5068949470d8bac35927beba0fa3fdf661b48afdc1bdb22628b63307a39108",
+          "success": true,
+          "complete": false,
+          "truncated": true,
+          "stream_done": true,
+          "body_complete": true,
+          "finish_reason": "length",
+          "ttft_sec": 0.6001469000002544,
+          "first_content_sec": 0.6001469000002544,
+          "latency_sec": 5.912996099999873,
+          "http_status": 200,
+          "event_count": 387,
+          "content": "### 结论\n最少称量 **4** 次。\n\n### 分组策略\n将 100 枚金币分为三组，尽量平均分配，但需满足每组数量不超过 $3^k$（其中 $k$ 为剩余称量次数）。具体步骤如下：\n\n**第 1 次称量：**\n将 100 枚金币分为三组：\n- A 组：33 枚\n- B 组：33 枚\n- C 组：34 枚\n\n将 A 组与 B 组放在天平两端。\n- **情况 1：天平平衡**\n  假币在 C 组（34 枚）。\n- **情况 2：天平不平衡**\n  假币在较轻的那一组（A 组或 B 组，共 33 枚）。\n\n**第 2 次称量：**\n根据第 1 次结果，将嫌疑组（33 枚或 34 枚）再次分为三组。\n- **若嫌疑组为 33 枚**：分为 11, 11, 11。称量前两组。\n  - 平衡：假币在第 3 组（11 枚）。\n  - 不平衡：假币在较轻的那组（11 枚）。\n- **若嫌疑组为 34 枚**：分为 11, 11, 12。称量前两组。\n  - 平衡：假币在第 3 组（12 枚）。\n  - 不平衡：假币在较轻的那组（11 枚）。\n\n无论哪种情况，经过第 2 次称量后，嫌疑范围缩小至",
+          "reasoning_content": "",
+          "tool_calls": [],
+          "usage": {
+            "completion_tokens": 384,
+            "prompt_tokens": 113,
+            "total_tokens": 497,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "timings": {
+            "cache_n": 0,
+            "prompt_n": 113,
+            "prompt_ms": 207.997,
+            "prompt_per_token_ms": 1.8406814159292038,
+            "prompt_per_second": 543.2770664961513,
+            "predicted_n": 384,
+            "predicted_ms": 5312.334,
+            "predicted_per_token_ms": 13.870323759791122,
+            "predicted_per_second": 72.09637044658713
+          },
+          "error": null,
+          "id": "chatcmpl-CU37tphEneAkJC45zMvLEMjdIpfbCXLf",
+          "model": "C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-PQ2_0.gguf",
+          "system_fingerprint": "b10777-e3de71522",
+          "content_chars": 499,
+          "reasoning_chars": 0,
+          "prompt_tokens": 113,
+          "predicted_tokens": 384
+        },
+        {
+          "req_id": 3,
+          "prompt_id": "builtin-1",
+          "seed": 45,
+          "prompt_sha256": "c5162bd1c734ac162e70ba868a4dc2c9fae285785f6db1c531a9842c3f1e1546",
+          "cache_marker": "bee83f05741ecff42b1fba580ebc55490b5f5609d522fb5f4990fd9caf12e24f",
+          "success": true,
+          "complete": false,
+          "truncated": true,
+          "stream_done": true,
+          "body_complete": true,
+          "finish_reason": "length",
+          "ttft_sec": 0.5999235999988741,
+          "first_content_sec": 0.5999235999988741,
+          "latency_sec": 5.912510599999223,
+          "http_status": 200,
+          "event_count": 387,
+          "content": "这是一个经典的逻辑推理问题。\n\n### 1. 分析条件\n*   **三个箱子**：分别贴有标签“苹果”、“橘子”、“苹果和橘子”（混合）。\n*   **关键约束**：**所有标签都贴错了**。这意味着：\n    *   贴“苹果”标签的箱子里**不是**纯苹果。\n    *   贴“橘子”标签的箱子里**不是**纯橘子。\n    *   贴“苹果和橘子”标签的箱子里**不是**混合水果（即它是纯苹果或纯橘子）。\n\n### 2. 策略选择\n你应该选择 **贴有“苹果和橘子”标签的箱子** 来取一个水果查看。\n\n### 3. 推理过程\n\n**第一步：查看“苹果和橘子”标签的箱子**\n由于所有标签都错了，这个箱子里**不可能**是混合水果。因此，它里面要么是**纯苹果**，要么是**纯橘子**。\n\n*   **情况 A：你取出的水果是苹果**\n    *   既然这个箱子是纯苹果，那么它的真实内容就是“苹果”。\n    *   现在剩下两个箱子：贴“苹果”标签的箱子和贴“橘子”标签的箱子。\n    *   我们知道贴“苹果”标签的箱子**不能**是苹果（因为标签错了），也不能是混合（因为混合的那个箱子已经被确定为纯苹果了）。所以，贴“苹果”标签的箱子只能是**橘子**。\n    *   最后剩下的贴“橘子”标签的箱子，只能是**混合**（苹果和橘子）。\n    *   **结论**：\n        *   “苹果和橘子”标签箱 → **纯苹果**\n        *   “苹果”标签箱 → **纯橘子**\n        *   “",
+          "reasoning_content": "",
+          "tool_calls": [],
+          "usage": {
+            "completion_tokens": 384,
+            "prompt_tokens": 113,
+            "total_tokens": 497,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "timings": {
+            "cache_n": 0,
+            "prompt_n": 113,
+            "prompt_ms": 208.102,
+            "prompt_per_token_ms": 1.8416106194690265,
+            "prompt_per_second": 543.0029504762089,
+            "predicted_n": 384,
+            "predicted_ms": 5312.444,
+            "predicted_per_token_ms": 13.870610966057443,
+            "predicted_per_second": 72.09487761188635
+          },
+          "error": null,
+          "id": "chatcmpl-W8oVQFBbLnduGr0nHg2Pa5nEZylMg4oi",
+          "model": "C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-PQ2_0.gguf",
+          "system_fingerprint": "b10777-e3de71522",
+          "content_chars": 675,
+          "reasoning_chars": 0,
+          "prompt_tokens": 113,
+          "predicted_tokens": 384
+        },
+        {
+          "req_id": 4,
+          "prompt_id": "builtin-3",
+          "seed": 46,
+          "prompt_sha256": "74f7ba60d36fe7662cea1f006aa0399fba70c4e87444865e24fa77a471a65357",
+          "cache_marker": "55d6ccbadf36d0ec49d6e77258ad754489db662e49d0725183603d2002805ef7",
+          "success": true,
+          "complete": false,
+          "truncated": true,
+          "stream_done": true,
+          "body_complete": true,
+          "finish_reason": "length",
+          "ttft_sec": 0.7012241000011272,
+          "first_content_sec": 0.7012241000011272,
+          "latency_sec": 6.000092400001449,
+          "http_status": 200,
+          "event_count": 386,
+          "content": "大模型在手机（Mobile）和边缘计算盒子（Edge Box）的落地，核心挑战在于**算力受限、功耗敏感、内存带宽瓶颈**以及**热设计功率（TDP）限制**。与云端数据中心不同，边缘设备无法依赖高带宽HBM（高带宽内存）和海量显存，必须通过算法与硬件协同优化（Algorithm-Hardware Co-design）来实现高效推理。\n\n以下从**硬件、量化算法、内存带宽**三个维度，详细解析技术瓶颈及优化路径：\n\n### 1. 硬件维度：算力密度与能效比（Performance per Watt）\n\n**技术瓶颈：**\n*   **NPU能力碎片化：** 手机SoC（如骁龙8 Gen 3、苹果A17 Pro、天玑9300）和边缘盒子（如Jetson Orin、瑞芯微RK3588）的NPU架构差异巨大，缺乏统一的算子支持。\n*   **算力峰值 vs 持续性能：** 硬件标称的TOPS（万亿次运算/秒）往往是在理想条件下测得，实际持续推理中受散热限制（Throttling），性能会大幅下降。\n*   **算子支持不全：** 大模型中的复杂算子（如Flash Attention、RoPE、KV Cache动态分配）在部分NPU上缺乏原生硬件加速，需回退到CPU/GPU，导致性能断崖。\n\n**优化路径：**\n*   **异构计算调度：** 构建智能调度器，将模型层动态分配到最优硬件。例如：\n    *   **NPU**：处理矩阵乘法（GEMM）、卷积等规则算子。\n    *   **GPU**：处理不规则图结构、注意力机制（若NPU不支持Flash Attention）。\n    *   **CPU**：处理预处理、",
+          "reasoning_content": "",
+          "tool_calls": [],
+          "usage": {
+            "completion_tokens": 384,
+            "prompt_tokens": 104,
+            "total_tokens": 488,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "timings": {
+            "cache_n": 0,
+            "prompt_n": 104,
+            "prompt_ms": 260.844,
+            "prompt_per_token_ms": 2.5081153846153845,
+            "prompt_per_second": 398.70573982916994,
+            "predicted_n": 384,
+            "predicted_ms": 5298.845,
+            "predicted_per_token_ms": 13.835104438642299,
+            "predicted_per_second": 72.27990250705578
+          },
+          "error": null,
+          "id": "chatcmpl-yI3rBjCxeIJVihHuJMQDXjHaSFvPWHJ3",
+          "model": "C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-PQ2_0.gguf",
+          "system_fingerprint": "b10777-e3de71522",
+          "content_chars": 719,
+          "reasoning_chars": 0,
+          "prompt_tokens": 104,
+          "predicted_tokens": 384
+        },
+        {
+          "req_id": 5,
+          "prompt_id": "builtin-2",
+          "seed": 47,
+          "prompt_sha256": "d9bbdb16fdcf6a9a831dba5df0f40df97bb5a7229494c6e6767087d2cdb7f1dc",
+          "cache_marker": "3549f14b36a755466c426c286d2d38a863f3d2dcedf6be1b61d285fb7933f76f",
+          "success": true,
+          "complete": false,
+          "truncated": true,
+          "stream_done": true,
+          "body_complete": true,
+          "finish_reason": "length",
+          "ttft_sec": 0.7011135000029753,
+          "first_content_sec": 0.7011135000029753,
+          "latency_sec": 6.000295700003335,
+          "http_status": 200,
+          "event_count": 387,
+          "content": "这是一个经典的相对运动问题，但包含了一个“停靠”环节，因此需要分阶段计算。\n\n**已知条件：**\n*   高铁速度 $v_1 = 300$ km/h\n*   动车速度 $v_2 = 200$ km/h\n*   总距离 $D = 1318$ km\n*   出发时间：同时出发\n*   动车停靠规则：行驶 1.5 小时后，停靠 20 分钟（即 $\\frac{1}{3}$ 小时）。\n\n**步骤 1：判断相遇发生在哪个阶段**\n\n首先，计算在动车停靠之前（即前 1.5 小时）两车行驶的距离和剩余距离。\n\n*   **高铁在 1.5 小时内行驶的距离：**\n    $$d_{1a} = v_1 \\times t_a = 300 \\times 1.5 = 450 \\text{ km}$$\n*   **动车在 1.5 小时内行驶的距离：**\n    $$d_{2a} = v_2 \\times t_a = 200 \\times 1.5 = 300 \\text{ km}$$\n*   **两车在 1.5 小时结束时共行驶的距离：**\n    $$d_{total\\_a} = 450 + 300 = 750 \\text{ km}$$\n*   **此时两车之间的剩余距离：**\n    $$D_{remaining} = 1318 - 750 = 568 \\text{ km}$$\n\n**步骤 2：分析停靠阶段**\n\n*   动车在 $t = 1.5$ 小时开始停靠，持续 2",
+          "reasoning_content": "",
+          "tool_calls": [],
+          "usage": {
+            "completion_tokens": 384,
+            "prompt_tokens": 131,
+            "total_tokens": 515,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "timings": {
+            "cache_n": 0,
+            "prompt_n": 131,
+            "prompt_ms": 260.955,
+            "prompt_per_token_ms": 1.9920229007633588,
+            "prompt_per_second": 502.00226092621335,
+            "predicted_n": 384,
+            "predicted_ms": 5298.87,
+            "predicted_per_token_ms": 13.835169712793734,
+            "predicted_per_second": 72.27956149141232
+          },
+          "error": null,
+          "id": "chatcmpl-jpZr1npI5hEX4KW5tIqUZ8KFU36AXJMW",
+          "model": "C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-PQ2_0.gguf",
+          "system_fingerprint": "b10777-e3de71522",
+          "content_chars": 633,
+          "reasoning_chars": 0,
+          "prompt_tokens": 131,
+          "predicted_tokens": 384
+        },
+        {
+          "req_id": 6,
+          "prompt_id": "builtin-4",
+          "seed": 48,
+          "prompt_sha256": "285e1c69c15b33cbe22977cda77897c4b96758ec3dd1ae7bb880b40dfc1b3562",
+          "cache_marker": "20412ee11d03d15088f6d316392f51c5e63bc3b3e5b09acc887d11d8e16f9fb5",
+          "success": true,
+          "complete": false,
+          "truncated": true,
+          "stream_done": true,
+          "body_complete": true,
+          "finish_reason": "length",
+          "ttft_sec": 0.6063938000006601,
+          "first_content_sec": 0.6063938000006601,
+          "latency_sec": 5.927234300001146,
+          "http_status": 200,
+          "event_count": 387,
+          "content": "这是一个经典的逻辑推理与信息论问题。\n\n### 结论\n**最少称量 4 次** 可以保证找出那枚较轻的假币。\n\n---\n\n### 1. 分组策略（具体操作步骤）\n\n我们将 100 枚金币分为三组，每次称量时尽量将剩余的可能性均匀分配到三个结果（左盘轻、右盘轻、平衡）中。\n\n**第 1 次称量：**\n*   **分组**：将 100 枚金币分为三组：A组（34枚）、B组（34枚）、C组（32枚）。\n*   **操作**：将 A组 和 B组 放在天平两端。\n*   **结果分析**：\n    *   **情况 1**：天平平衡。说明假币在 C组（32枚）。\n    *   **情况 2**：A组轻。说明假币在 A组（34枚）。\n    *   **情况 3**：B组轻。说明假币在 B组（34枚）。\n    *   *注：无论哪种情况，我们最多剩下 34 枚候选金币。*\n\n**第 2 次称量：**\n*   **假设**：假币在 34 枚的候选组中（若在第1次平衡，则处理32枚组，逻辑相同，只需调整数字）。\n*   **分组**：将 34 枚分为：A'（11枚）、B'（11枚）、C'（12枚）。\n*   **操作**：将 A' 和 B' 放在天平两端。\n*   **结果分析**：\n    *   **情况 1**：平衡。",
+          "reasoning_content": "",
+          "tool_calls": [],
+          "usage": {
+            "completion_tokens": 384,
+            "prompt_tokens": 119,
+            "total_tokens": 503,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "timings": {
+            "cache_n": 0,
+            "prompt_n": 119,
+            "prompt_ms": 217.976,
+            "prompt_per_token_ms": 1.8317310924369747,
+            "prompt_per_second": 545.9316622013432,
+            "predicted_n": 384,
+            "predicted_ms": 5320.438,
+            "predicted_per_token_ms": 13.891483028720627,
+            "predicted_per_second": 71.98655449043856
+          },
+          "error": null,
+          "id": "chatcmpl-o3udmpuIoxMMAgN6BOKPKVDlOBoVGb8g",
+          "model": "C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-PQ2_0.gguf",
+          "system_fingerprint": "b10777-e3de71522",
+          "content_chars": 565,
+          "reasoning_chars": 0,
+          "prompt_tokens": 119,
+          "predicted_tokens": 384
+        },
+        {
+          "req_id": 7,
+          "prompt_id": "builtin-1",
+          "seed": 49,
+          "prompt_sha256": "a2e8982a94eab6bb6f299d8888edb0b4ece6c5bba07211e006017a779963805c",
+          "cache_marker": "e27257f2f127d0e1099f18ea32222555a894239177a96633d24a2e665aea7af7",
+          "success": true,
+          "complete": false,
+          "truncated": true,
+          "stream_done": true,
+          "body_complete": true,
+          "finish_reason": "length",
+          "ttft_sec": 0.6060932000000321,
+          "first_content_sec": 0.6060932000000321,
+          "latency_sec": 5.927029099999345,
+          "http_status": 200,
+          "event_count": 387,
+          "content": "这是一个经典的逻辑推理问题。\n\n### 1. 分析条件\n*   **三个箱子**：分别贴有标签“苹果”、“橘子”、“苹果和橘子”（混合）。\n*   **关键约束**：**所有标签都贴错了**。这意味着：\n    *   贴“苹果”标签的箱子里**不是**纯苹果。\n    *   贴“橘子”标签的箱子里**不是**纯橘子。\n    *   贴“苹果和橘子”标签的箱子里**不是**混合水果（即它是纯苹果或纯橘子）。\n\n### 2. 策略选择\n你应该选择 **贴有“苹果和橘子”标签的箱子** 来取一个水果查看。\n\n### 3. 推理过程\n\n**第一步：查看“苹果和橘子”标签的箱子**\n由于所有标签都错了，这个箱子里**不可能**是混合水果。因此，它里面要么是**纯苹果**，要么是**纯橘子**。\n\n*   **情况 A：你取出的水果是苹果**\n    *   既然这个箱子是纯苹果，那么它的真实内容就是“苹果”。\n    *   现在剩下两个箱子：贴“苹果”标签的箱子和贴“橘子”标签的箱子。\n    *   我们知道贴“苹果”标签的箱子**不能**是苹果（因为标签错了），也不能是混合（因为混合的那个箱子已经被确定为纯苹果了）。所以，贴“苹果”标签的箱子只能是**橘子**。\n    *   最后剩下的贴“橘子”标签的箱子，只能是**混合**（苹果和橘子）。\n    *   **结论**：\n        *   “苹果和橘子”标签箱 → **纯苹果**\n        *   “苹果”标签箱 → **纯橘子**\n        *   “",
+          "reasoning_content": "",
+          "tool_calls": [],
+          "usage": {
+            "completion_tokens": 384,
+            "prompt_tokens": 119,
+            "total_tokens": 503,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "timings": {
+            "cache_n": 0,
+            "prompt_n": 119,
+            "prompt_ms": 218.069,
+            "prompt_per_token_ms": 1.8325126050420166,
+            "prompt_per_second": 545.6988384410439,
+            "predicted_n": 384,
+            "predicted_ms": 5320.466,
+            "predicted_per_token_ms": 13.891556135770236,
+            "predicted_per_second": 71.98617564702039
+          },
+          "error": null,
+          "id": "chatcmpl-cIkZFwJUz3LKRIxIaP7rGMWx6V7ztcLa",
+          "model": "C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-PQ2_0.gguf",
+          "system_fingerprint": "b10777-e3de71522",
+          "content_chars": 675,
+          "reasoning_chars": 0,
+          "prompt_tokens": 119,
+          "predicted_tokens": 384
+        }
+      ],
+      "gpu_before": {
+        "command": [
+          "C:\\Windows\\system32\\nvidia-smi.EXE",
+          "--query-gpu=index,name,driver_version,memory.total,memory.used,utilization.gpu",
+          "--format=csv,nounits"
+        ],
+        "returncode": 0,
+        "stdout": "index, name, driver_version, memory.total [MiB], memory.used [MiB], utilization.gpu [%]\n0, NVIDIA GeForce RTX 5070 Ti, 617.14, 16303, 12038, 6",
+        "stderr": ""
+      },
+      "gpu_after": {
+        "command": [
+          "C:\\Windows\\system32\\nvidia-smi.EXE",
+          "--query-gpu=index,name,driver_version,memory.total,memory.used,utilization.gpu",
+          "--format=csv,nounits"
+        ],
+        "returncode": 0,
+        "stdout": "index, name, driver_version, memory.total [MiB], memory.used [MiB], utilization.gpu [%]\n0, NVIDIA GeForce RTX 5070 Ti, 617.14, 16303, 12038, 95",
+        "stderr": ""
+      }
+    },
+    {
+      "mode": "off",
+      "concurrency": 4,
+      "repeat": 1,
+      "cache": "cold",
+      "summary": {
+        "total_requests": 8,
+        "success_count": 8,
+        "complete_count": 0,
+        "truncated_count": 8,
+        "error_count": 0,
+        "finish_reasons": {
+          "length": 8
+        },
+        "batch_wall_sec": 17.98241880000205,
+        "total_predicted_tokens": 3072,
+        "system_throughput_tps": 170.8335254654201,
+        "latency_sec": {
+          "count": 8,
+          "mean": 8.990764975000275,
+          "p50": 8.99073214999953,
+          "p95": 9.363562545000786
+        },
+        "ttft_sec": {
+          "count": 8,
+          "mean": 0.9643636000005245,
+          "p50": 0.9643116000006557,
+          "p95": 1.3393440350002492
+        },
+        "first_content_sec": {
+          "count": 8,
+          "mean": 0.9643636000005245,
+          "p50": 0.9643116000006557,
+          "p95": 1.3393440350002492
+        },
+        "complete_latency_sec": {
+          "count": 0,
+          "mean": null,
+          "p50": null,
+          "p95": null
+        },
+        "server_decode_tps": {
+          "count": 8,
+          "mean": 47.719662497429624,
+          "p50": 47.719801373546034,
+          "p95": 47.73376890460854
+        },
+        "server_prompt_tps": {
+          "count": 8,
+          "mean": 226.93393728306586,
+          "p50": 230.6241985460723,
+          "p95": 249.54543691562515
+        }
+      },
+      "warmup_results": [
+        {
+          "req_id": "warmup-0",
+          "prompt_id": "warmup",
+          "seed": 42,
+          "prompt_sha256": "ce50de79f3f4e1709878354e973a5d158479c568ea9a6a53587b0ed76dcfcfe1",
+          "cache_marker": "1f23c400c47f41e1b57bec6660eb32a9",
+          "success": true,
+          "complete": true,
+          "truncated": false,
+          "stream_done": true,
+          "body_complete": true,
+          "finish_reason": "stop",
+          "ttft_sec": 0.4996571999981825,
+          "first_content_sec": 0.4996571999981825,
+          "latency_sec": 0.5224945999980264,
+          "http_status": 200,
+          "event_count": 4,
+          "content": "OK",
+          "reasoning_content": "",
+          "tool_calls": [],
+          "usage": {
+            "completion_tokens": 2,
+            "prompt_tokens": 54,
+            "total_tokens": 56,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "timings": {
+            "cache_n": 0,
+            "prompt_n": 54,
+            "prompt_ms": 103.648,
+            "prompt_per_token_ms": 1.9194074074074072,
+            "prompt_per_second": 520.9941339919728,
+            "predicted_n": 2,
+            "predicted_ms": 22.675,
+            "predicted_per_token_ms": 22.675,
+            "predicted_per_second": 44.10143329658214
+          },
+          "error": null,
+          "id": "chatcmpl-OedoNdIIW30AHKt1VF8zfC3FRQ1fY2hO",
+          "model": "C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-PQ2_0.gguf",
+          "system_fingerprint": "b10777-e3de71522",
+          "content_chars": 2,
+          "reasoning_chars": 0,
+          "prompt_tokens": 54,
+          "predicted_tokens": 2
+        }
+      ],
+      "results": [
+        {
+          "req_id": 0,
+          "prompt_id": "builtin-3",
+          "seed": 42,
+          "prompt_sha256": "fd2e48505328a3fb1d7096841afb88b66b906da53519156caf5132d7b9f9a163",
+          "cache_marker": "3636ae332738b730f39a49eb297ce69c6dd5d640f732505e32da8dc395517d77",
+          "success": true,
+          "complete": false,
+          "truncated": true,
+          "stream_done": true,
+          "body_complete": true,
+          "finish_reason": "length",
+          "ttft_sec": 0.589735000001383,
+          "first_content_sec": 0.589735000001383,
+          "latency_sec": 8.618239400002494,
+          "http_status": 200,
+          "event_count": 387,
+          "content": "大模型在手机（Mobile）和边缘计算盒子（Edge Box）的落地，核心挑战在于**算力受限、功耗敏感、内存带宽瓶颈**以及**热设计功率（TDP）限制**。与云端数据中心不同，边缘设备无法依赖高带宽HBM（高带宽内存）和海量显存，必须通过算法与硬件协同优化（Co-design）来实现可接受的推理延迟和吞吐量。\n\n以下从**硬件、量化算法、内存带宽**三个维度，详细解析技术瓶颈及优化路径：\n\n### 1. 硬件维度：算力密度与能效比（PPL）\n\n**技术瓶颈：**\n*   **NPU能力碎片化：** 手机NPU（如Apple Neural Engine, Qualcomm Hexagon, MediaTek APU）和边缘盒子NPU（如Jetson Orin, 瑞芯微RK3588, 海思AI芯片）架构差异巨大，缺乏统一的算子支持，导致模型移植成本高。\n*   **算力-能效墙：** 边缘设备受限于电池或散热，无法像GPU服务器那样持续高负载运行。大模型推理是“内存密集型”而非“算力密集型”，单纯堆叠NPU算力往往无法线性提升性能，反而导致发热和降频。\n*   **内存容量限制：** 手机RAM通常为8-16GB，边缘盒子为8-32GB。7B参数模型即使量化后也需要数GB显存，加上KV Cache和激活值，极易OOM（Out of Memory）。\n\n**优化路径：**\n*   **异构计算调度：** 构建智能调度器，将计算密集型层（如Attention中的矩阵乘法）分配给NPU/GPU，将内存密集型层（如Embedding、KV Cache读写）分配给CPU或专用DRAM，利用各单元优势。\n*   **模型剪枝",
+          "reasoning_content": "",
+          "tool_calls": [],
+          "usage": {
+            "completion_tokens": 384,
+            "prompt_tokens": 105,
+            "total_tokens": 489,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "timings": {
+            "cache_n": 0,
+            "prompt_n": 105,
+            "prompt_ms": 506.924,
+            "prompt_per_token_ms": 4.827847619047619,
+            "prompt_per_second": 207.13164103494805,
+            "predicted_n": 384,
+            "predicted_ms": 8028.412,
+            "predicted_per_token_ms": 20.961911227154047,
+            "predicted_per_second": 47.70557365516368
+          },
+          "error": null,
+          "id": "chatcmpl-KbdmlX7GYyZW9YRtwRWc0VvXFnhyEhP3",
+          "model": "C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-PQ2_0.gguf",
+          "system_fingerprint": "b10777-e3de71522",
+          "content_chars": 718,
+          "reasoning_chars": 0,
+          "prompt_tokens": 105,
+          "predicted_tokens": 384
+        },
+        {
+          "req_id": 1,
+          "prompt_id": "builtin-2",
+          "seed": 43,
+          "prompt_sha256": "c3eba69bf4bd28cafdc628c375ede9ca8db53b4b8aafeb9e7b72a0d95dd3bd05",
+          "cache_marker": "f8eef19ab9ba97d9ba5193701420819a0c829cf472e08e082b4637e4f45cfcfd",
+          "success": true,
+          "complete": false,
+          "truncated": true,
+          "stream_done": true,
+          "body_complete": true,
+          "finish_reason": "length",
+          "ttft_sec": 0.589521900001273,
+          "first_content_sec": 0.589521900001273,
+          "latency_sec": 8.618129200000112,
+          "http_status": 200,
+          "event_count": 387,
+          "content": "这是一个经典的相对运动问题，但包含了一个“停靠”环节，因此需要分阶段计算。\n\n**已知条件：**\n*   高铁速度 $v_1 = 300$ km/h\n*   动车速度 $v_2 = 200$ km/h\n*   总距离 $D = 1318$ km\n*   出发时间：同时出发\n*   动车停靠规则：行驶 1.5 小时后，停靠 20 分钟（即 $\\frac{1}{3}$ 小时）。\n\n**步骤 1：判断相遇发生在哪个阶段**\n\n首先，计算在动车停靠之前（即前 1.5 小时）两车行驶的距离和剩余距离。\n\n*   **高铁在 1.5 小时内行驶的距离：**\n    $$d_{1a} = v_1 \\times t_a = 300 \\times 1.5 = 450 \\text{ km}$$\n*   **动车在 1.5 小时内行驶的距离：**\n    $$d_{2a} = v_2 \\times t_a = 200 \\times 1.5 = 300 \\text{ km}$$\n*   **两车合计行驶的距离：**\n    $$d_{total\\_a} = 450 + 300 = 750 \\text{ km}$$\n*   **此时剩余距离：**\n    $$D_{remaining} = 1318 - 750 = 568 \\text{ km}$$\n\n**步骤 2：分析停靠阶段**\n\n*   动车在 $t = 1.5$ 小时时开始停靠。\n*   停靠时间 $t_{stop} = ",
+          "reasoning_content": "",
+          "tool_calls": [],
+          "usage": {
+            "completion_tokens": 384,
+            "prompt_tokens": 127,
+            "total_tokens": 511,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "timings": {
+            "cache_n": 0,
+            "prompt_n": 127,
+            "prompt_ms": 507.029,
+            "prompt_per_token_ms": 3.9923543307086615,
+            "prompt_per_second": 250.47876945894615,
+            "predicted_n": 384,
+            "predicted_ms": 8028.441,
+            "predicted_per_token_ms": 20.961986945169713,
+            "predicted_per_second": 47.70540133507863
+          },
+          "error": null,
+          "id": "chatcmpl-tocDV7NiSfJQnAu5b2vq3igOpofLFI66",
+          "model": "C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-PQ2_0.gguf",
+          "system_fingerprint": "b10777-e3de71522",
+          "content_chars": 637,
+          "reasoning_chars": 0,
+          "prompt_tokens": 127,
+          "predicted_tokens": 384
+        },
+        {
+          "req_id": 2,
+          "prompt_id": "builtin-4",
+          "seed": 44,
+          "prompt_sha256": "593f1db5c32c96f2ce4ef45e7d8b13c69b690c0f2b4c2266547f2d3cc0559c8f",
+          "cache_marker": "fa66347afd43554b5f6e0e51a59a01f7dc017a7783f6541e8f67e5b3de76f382",
+          "success": true,
+          "complete": false,
+          "truncated": true,
+          "stream_done": true,
+          "body_complete": true,
+          "finish_reason": "length",
+          "ttft_sec": 0.5896227000012004,
+          "first_content_sec": 0.5896227000012004,
+          "latency_sec": 8.618437400000403,
+          "http_status": 200,
+          "event_count": 387,
+          "content": "### 结论\n最少称量 **4** 次。\n\n### 分组策略\n将 100 枚金币分为三组，尽量平均分配，但需满足每组数量不超过 $3^k$（其中 $k$ 为剩余称量次数）。具体步骤如下：\n\n**第 1 次称量：**\n将 100 枚金币分为三组：\n- A 组：33 枚\n- B 组：33 枚\n- C 组：34 枚\n\n将 A 组与 B 组放在天平两端。\n- **情况 1：天平平衡**\n  假币在 C 组（34 枚）。\n- **情况 2：天平不平衡**\n  假币在较轻的那一组（A 组或 B 组，共 33 枚）。\n\n**第 2 次称量：**\n根据第 1 次结果，将嫌疑组（33 枚或 34 枚）再次分为三组。\n- **若嫌疑组为 33 枚**：分为 11, 11, 11。称量前两组。\n  - 平衡：假币在第 3 组（11 枚）。\n  - 不平衡：假币在较轻的那组（11 枚）。\n- **若嫌疑组为 34 枚**：分为 11, 11, 12。称量前两组。\n  - 平衡：假币在第 3 组（12 枚）。\n  - 不平衡：假币在较轻的那组（11 枚）。\n\n无论哪种情况，经过第 2 次称量后，嫌疑范围缩小至",
+          "reasoning_content": "",
+          "tool_calls": [],
+          "usage": {
+            "completion_tokens": 384,
+            "prompt_tokens": 118,
+            "total_tokens": 502,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "timings": {
+            "cache_n": 0,
+            "prompt_n": 118,
+            "prompt_ms": 507.404,
+            "prompt_per_token_ms": 4.3000338983050845,
+            "prompt_per_second": 232.5563062175308,
+            "predicted_n": 384,
+            "predicted_ms": 8028.357,
+            "predicted_per_token_ms": 20.961767624020887,
+            "predicted_per_second": 47.705900472537536
+          },
+          "error": null,
+          "id": "chatcmpl-dTQjU58jTGkBvIyM0FkWtrqQqmTr3rWJ",
+          "model": "C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-PQ2_0.gguf",
+          "system_fingerprint": "b10777-e3de71522",
+          "content_chars": 499,
+          "reasoning_chars": 0,
+          "prompt_tokens": 118,
+          "predicted_tokens": 384
+        },
+        {
+          "req_id": 3,
+          "prompt_id": "builtin-1",
+          "seed": 45,
+          "prompt_sha256": "24fd364b022bf825cd5e3eb4036ad3d9ae7e8fe2f6b4026784760f053b042409",
+          "cache_marker": "860f8a479ed632e924185982536b23b988f6a10b99f9e9d2a7eeff1e216e5d7e",
+          "success": true,
+          "complete": false,
+          "truncated": true,
+          "stream_done": true,
+          "body_complete": true,
+          "finish_reason": "length",
+          "ttft_sec": 0.589370500001678,
+          "first_content_sec": 0.589370500001678,
+          "latency_sec": 8.618123000000196,
+          "http_status": 200,
+          "event_count": 387,
+          "content": "这是一个经典的逻辑推理问题。关键在于利用“**所有标签都贴错了**”这一条件。\n\n### 1. 分析情况\n- 有三个箱子，实际内容分别是：苹果、橘子、苹果（注意：题目说“三个箱子贴着苹果、橘子、苹果和橘子的标签”，这里表述略有歧义，通常这类题目是三个箱子分别装有苹果、橘子、混合（或另一种水果），但根据“苹果、橘子、苹果和橘子”的标签描述，更合理的理解是：\n  - 箱子 A 标签：苹果\n  - 箱子 B 标签：橘子\n  - 箱子 C 标签：苹果（或混合？题目说“苹果、橘子、苹果和橘子”，共四个词，但只有三个箱子。重新审视题目：“三个箱子贴着苹果、橘子、苹果和橘子的标签”——这很可能是一个笔误，通常标准题目是三个箱子标签为“苹果”、“橘子”、“混合”或“苹果”、“橘子”、“其他”。\n  \n  **修正理解**：根据经典逻辑题的标准形式，以及“苹果、橘子、苹果和橘子”的标签描述，最可能的情况是：\n  - 箱子 1 标签：**苹果**\n  - 箱子 2 标签：**橘子**\n  - 箱子 3 标签：**苹果**（或可能是“混合”？但题目明确写了“苹果、橘子、苹果和橘子”四个标签词，对应三个箱子，这不合逻辑。）\n  \n  **再仔细读题**：“三个箱子贴着苹果、橘子、苹果和橘子的标签”。\n  这通常意味着：\n  - 箱子 A 标签：苹果\n  - 箱子 B 标签：橘子\n  - 箱子 C 标签：苹果（重复？）或者题目本意是三个箱子标签分别为",
+          "reasoning_content": "",
+          "tool_calls": [],
+          "usage": {
+            "completion_tokens": 384,
+            "prompt_tokens": 121,
+            "total_tokens": 505,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "timings": {
+            "cache_n": 0,
+            "prompt_n": 121,
+            "prompt_ms": 507.178,
+            "prompt_per_token_ms": 4.191553719008264,
+            "prompt_per_second": 238.5750170551562,
+            "predicted_n": 384,
+            "predicted_ms": 8028.429,
+            "predicted_per_token_ms": 20.961955613577025,
+            "predicted_per_second": 47.70547263979042
+          },
+          "error": null,
+          "id": "chatcmpl-XPVYVwBVY5ZkHx5KKonZ5YjYxXRuQija",
+          "model": "C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-PQ2_0.gguf",
+          "system_fingerprint": "b10777-e3de71522",
+          "content_chars": 622,
+          "reasoning_chars": 0,
+          "prompt_tokens": 121,
+          "predicted_tokens": 384
+        },
+        {
+          "req_id": 4,
+          "prompt_id": "builtin-3",
+          "seed": 46,
+          "prompt_sha256": "ee6d49bd21b4602081d4d0736cebdd8c7b04b3e7513263fc5e436040c0179ffc",
+          "cache_marker": "b06734bcc900478194671e9682aef274aea76cf7b2fb93124c67b95cc4a97068",
+          "success": true,
+          "complete": false,
+          "truncated": true,
+          "stream_done": true,
+          "body_complete": true,
+          "finish_reason": "length",
+          "ttft_sec": 1.3393705999988015,
+          "first_content_sec": 1.3393705999988015,
+          "latency_sec": 9.363637200000085,
+          "http_status": 200,
+          "event_count": 387,
+          "content": "大模型在手机（Mobile）和边缘计算盒子（Edge Box）的落地，核心挑战在于**算力受限、功耗敏感、内存带宽瓶颈**以及**热设计功率（TDP）限制**。与云端数据中心不同，边缘设备无法依赖高带宽HBM（高带宽内存）和海量显存，必须通过算法与硬件协同优化（Co-design）来实现可接受的推理延迟和吞吐量。\n\n以下从**硬件、量化算法、内存带宽**三个维度，详细解析技术瓶颈及优化路径：\n\n### 1. 硬件维度：算力密度与能效比（PPL）\n\n**技术瓶颈：**\n*   **NPU 算力碎片化：** 手机NPU（如Apple Neural Engine, Qualcomm Hexagon, MediaTek APU）和边缘盒子NPU（如Jetson Orin, 瑞芯微RK3588）的架构差异巨大，缺乏统一的算子支持。许多标准算子（如Flash Attention、复杂KV Cache管理）在NPU上效率极低，导致频繁回退到CPU/GPU，造成性能断崖。\n*   **内存容量限制：** 手机RAM通常为8-16GB，边缘盒子为8-32GB。大模型（如7B-13B参数）的权重本身就需要数GB内存，加上KV Cache和激活值，极易导致OOM（Out of Memory）。\n*   **散热与功耗墙：** 边缘设备散热能力有限，持续高负载会导致降频（Throttling），使得理论峰值算力无法转化为实际持续算力。\n\n**优化路径：**\n*   **模型剪枝与结构优化：**\n    *   采用**MoE（Mixture of Experts）**架构，仅激活部分专家头，降低实际计算量。\n    *   使用**LoRA/QLoRA**",
+          "reasoning_content": "",
+          "tool_calls": [],
+          "usage": {
+            "completion_tokens": 384,
+            "prompt_tokens": 102,
+            "total_tokens": 486,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "timings": {
+            "cache_n": 0,
+            "prompt_n": 102,
+            "prompt_ms": 528.425,
+            "prompt_per_token_ms": 5.18063725490196,
+            "prompt_per_second": 193.0264465155888,
+            "predicted_n": 384,
+            "predicted_ms": 8023.681,
+            "predicted_per_token_ms": 20.94955874673629,
+            "predicted_per_second": 47.73370227455454
+          },
+          "error": null,
+          "id": "chatcmpl-AhZ3xK0dTwfnHZM6ZhFsjbtL0x7xgev7",
+          "model": "C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-PQ2_0.gguf",
+          "system_fingerprint": "b10777-e3de71522",
+          "content_chars": 728,
+          "reasoning_chars": 0,
+          "prompt_tokens": 102,
+          "predicted_tokens": 384
+        },
+        {
+          "req_id": 5,
+          "prompt_id": "builtin-2",
+          "seed": 47,
+          "prompt_sha256": "a33d4129eb17ad88168d0d1acc3985c8171e6e80b38f2bb570a35530d6f25478",
+          "cache_marker": "4a109d7dc221e6f370a8c1d9a98581500bceaa5798020db29df5748233b79f64",
+          "success": true,
+          "complete": false,
+          "truncated": true,
+          "stream_done": true,
+          "body_complete": true,
+          "finish_reason": "length",
+          "ttft_sec": 1.339294700002938,
+          "first_content_sec": 1.339294700002938,
+          "latency_sec": 9.36342390000209,
+          "http_status": 200,
+          "event_count": 387,
+          "content": "这是一个经典的相对运动问题，但包含了一个“停靠”环节，因此需要分阶段计算。\n\n**已知条件：**\n*   高铁速度 $v_1 = 300$ km/h\n*   动车速度 $v_2 = 200$ km/h\n*   总距离 $D = 1318$ km\n*   出发时间：同时出发\n*   动车停靠规则：行驶 1.5 小时后，停靠 20 分钟（即 $\\frac{1}{3}$ 小时）。\n\n**步骤 1：判断相遇发生在哪个阶段**\n\n首先，计算在动车停靠之前（即前 1.5 小时）两车行驶的距离和剩余距离。\n\n*   **高铁在 1.5 小时内行驶的距离：**\n    $$d_{1a} = v_1 \\times t_a = 300 \\times 1.5 = 450 \\text{ km}$$\n*   **动车在 1.5 小时内行驶的距离：**\n    $$d_{2a} = v_2 \\times t_a = 200 \\times 1.5 = 300 \\text{ km}$$\n*   **两车在 1.5 小时结束时共行驶的距离：**\n    $$d_{total\\_a} = 450 + 300 = 750 \\text{ km}$$\n*   **此时两车之间的剩余距离：**\n    $$D_{remaining} = 1318 - 750 = 568 \\text{ km}$$\n\n**步骤 2：分析停靠阶段**\n\n*   动车在 $t = 1.5$ 小时开始停靠，持续 2",
+          "reasoning_content": "",
+          "tool_calls": [],
+          "usage": {
+            "completion_tokens": 384,
+            "prompt_tokens": 130,
+            "total_tokens": 514,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "timings": {
+            "cache_n": 0,
+            "prompt_n": 130,
+            "prompt_ms": 524.591,
+            "prompt_per_token_ms": 4.035315384615385,
+            "prompt_per_second": 247.81210504945759,
+            "predicted_n": 384,
+            "predicted_ms": 8023.675,
+            "predicted_per_token_ms": 20.949543080939947,
+            "predicted_per_second": 47.733737969197406
+          },
+          "error": null,
+          "id": "chatcmpl-pLADwab8EP1O9T6rCTZD9KEcG3PgY74O",
+          "model": "C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-PQ2_0.gguf",
+          "system_fingerprint": "b10777-e3de71522",
+          "content_chars": 633,
+          "reasoning_chars": 0,
+          "prompt_tokens": 130,
+          "predicted_tokens": 384
+        },
+        {
+          "req_id": 6,
+          "prompt_id": "builtin-4",
+          "seed": 48,
+          "prompt_sha256": "028feb7bdb8fad1b5894fb81722747867cb1260e9e13ec57fdb7cdaa67a14683",
+          "cache_marker": "a0c508865668f218412d9bf2ad7252abf05b983eac4abca7ec797590b428ebe8",
+          "success": true,
+          "complete": false,
+          "truncated": true,
+          "stream_done": true,
+          "body_complete": true,
+          "finish_reason": "length",
+          "ttft_sec": 1.3391051999969932,
+          "first_content_sec": 1.3391051999969932,
+          "latency_sec": 9.36310279999816,
+          "http_status": 200,
+          "event_count": 387,
+          "content": "### 结论\n最少称量 **4** 次。\n\n### 分组策略\n将 100 枚金币分为三组，尽量平均分配，但需满足每组数量不超过 $3^k$（其中 $k$ 为剩余称量次数）。具体步骤如下：\n\n**第 1 次称量：**\n将 100 枚金币分为三组：\n- A 组：33 枚\n- B 组：33 枚\n- C 组：34 枚\n\n将 A 组与 B 组放在天平两端。\n- **情况 1：天平平衡**\n  假币在 C 组（34 枚）。\n- **情况 2：天平不平衡**\n  假币在较轻的那一组（A 组或 B 组，共 33 枚）。\n\n**第 2 次称量：**\n根据第 1 次结果，将嫌疑组（33 枚或 34 枚）再次分为三组。\n- **若嫌疑组为 33 枚**：分为 11, 11, 11。称量前两组。\n  - 平衡：假币在第 3 组（11 枚）。\n  - 不平衡：假币在较轻的那组（11 枚）。\n- **若嫌疑组为 34 枚**：分为 11, 11, 12。称量前两组。\n  - 平衡：假币在第 3 组（12 枚）。\n  - 不平衡：假币在较轻的那组（11 枚）。\n\n无论哪种情况，经过第 2 次称量后，嫌疑范围缩小至",
+          "reasoning_content": "",
+          "tool_calls": [],
+          "usage": {
+            "completion_tokens": 384,
+            "prompt_tokens": 114,
+            "total_tokens": 498,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "timings": {
+            "cache_n": 0,
+            "prompt_n": 114,
+            "prompt_ms": 524.864,
+            "prompt_per_token_ms": 4.604070175438597,
+            "prompt_per_second": 217.19912205828555,
+            "predicted_n": 384,
+            "predicted_ms": 8023.667,
+            "predicted_per_token_ms": 20.94952219321149,
+            "predicted_per_second": 47.733785562137605
+          },
+          "error": null,
+          "id": "chatcmpl-06JcQGOXy4V2nBvmlE9K2vQMdUcghHzM",
+          "model": "C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-PQ2_0.gguf",
+          "system_fingerprint": "b10777-e3de71522",
+          "content_chars": 499,
+          "reasoning_chars": 0,
+          "prompt_tokens": 114,
+          "predicted_tokens": 384
+        },
+        {
+          "req_id": 7,
+          "prompt_id": "builtin-1",
+          "seed": 49,
+          "prompt_sha256": "612635b91468f92d9a15d520265afb767ff0d443e1967ba4bb99ed2d2222b2bc",
+          "cache_marker": "ba3e444d74eef00f751e611f1d2a657bcb3e68965283794c78164f9c37f71694",
+          "success": true,
+          "complete": false,
+          "truncated": true,
+          "stream_done": true,
+          "body_complete": true,
+          "finish_reason": "length",
+          "ttft_sec": 1.3388881999999285,
+          "first_content_sec": 1.3388881999999285,
+          "latency_sec": 9.363026899998658,
+          "http_status": 200,
+          "event_count": 387,
+          "content": "这是一个经典的逻辑推理问题。\n\n### 1. 分析条件\n*   **三个箱子**：分别贴有标签“苹果”、“橘子”、“苹果和橘子”（混合）。\n*   **关键约束**：**所有标签都贴错了**。这意味着：\n    *   贴“苹果”标签的箱子里**不是**纯苹果。\n    *   贴“橘子”标签的箱子里**不是**纯橘子。\n    *   贴“苹果和橘子”标签的箱子里**不是**混合水果（即它是纯苹果或纯橘子）。\n\n### 2. 策略选择\n你应该选择 **贴有“苹果和橘子”标签的箱子** 来取一个水果查看。\n\n### 3. 推理过程\n\n**第一步：查看“苹果和橘子”标签的箱子**\n由于所有标签都错了，这个箱子里**不可能**是混合水果。因此，它里面要么是**纯苹果**，要么是**纯橘子**。\n\n*   **情况 A：你取出的水果是苹果**\n    *   既然这个箱子是纯苹果，那么它的真实内容就是“苹果”。\n    *   现在剩下两个箱子：贴“苹果”标签的箱子和贴“橘子”标签的箱子。\n    *   我们知道贴“苹果”标签的箱子**不能**是苹果（因为标签错了），也不能是混合（因为混合的那个箱子已经被确定为纯苹果了）。所以，贴“苹果”标签的箱子只能是**橘子**。\n    *   最后剩下的贴“橘子”标签的箱子，只能是**混合**（苹果和橘子）。\n    *   **结论**：\n        *   “苹果和橘子”标签箱 → **纯苹果**\n        *   “苹果”标签箱 → **纯橘子**\n        *   “",
+          "reasoning_content": "",
+          "tool_calls": [],
+          "usage": {
+            "completion_tokens": 384,
+            "prompt_tokens": 120,
+            "total_tokens": 504,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "timings": {
+            "cache_n": 0,
+            "prompt_n": 120,
+            "prompt_ms": 524.723,
+            "prompt_per_token_ms": 4.372691666666666,
+            "prompt_per_second": 228.69209087461385,
+            "predicted_n": 384,
+            "predicted_ms": 8023.677,
+            "predicted_per_token_ms": 20.949548302872063,
+            "predicted_per_second": 47.733726070977184
+          },
+          "error": null,
+          "id": "chatcmpl-qsqL8cWgGVYOsctUNBIfE6h35ZQYheBm",
+          "model": "C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-PQ2_0.gguf",
+          "system_fingerprint": "b10777-e3de71522",
+          "content_chars": 675,
+          "reasoning_chars": 0,
+          "prompt_tokens": 120,
+          "predicted_tokens": 384
+        }
+      ],
+      "gpu_before": {
+        "command": [
+          "C:\\Windows\\system32\\nvidia-smi.EXE",
+          "--query-gpu=index,name,driver_version,memory.total,memory.used,utilization.gpu",
+          "--format=csv,nounits"
+        ],
+        "returncode": 0,
+        "stdout": "index, name, driver_version, memory.total [MiB], memory.used [MiB], utilization.gpu [%]\n0, NVIDIA GeForce RTX 5070 Ti, 617.14, 16303, 12038, 5",
+        "stderr": ""
+      },
+      "gpu_after": {
+        "command": [
+          "C:\\Windows\\system32\\nvidia-smi.EXE",
+          "--query-gpu=index,name,driver_version,memory.total,memory.used,utilization.gpu",
+          "--format=csv,nounits"
+        ],
+        "returncode": 0,
+        "stdout": "index, name, driver_version, memory.total [MiB], memory.used [MiB], utilization.gpu [%]\n0, NVIDIA GeForce RTX 5070 Ti, 617.14, 16303, 12040, 95",
+        "stderr": ""
+      }
+    }
+  ],
+  "metadata_after": {
+    "python": "3.12.11",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "gpu": {
+      "command": [
+        "C:\\Windows\\system32\\nvidia-smi.EXE",
+        "--query-gpu=index,name,driver_version,memory.total,memory.used,utilization.gpu",
+        "--format=csv,nounits"
+      ],
+      "returncode": 0,
+      "stdout": "index, name, driver_version, memory.total [MiB], memory.used [MiB], utilization.gpu [%]\n0, NVIDIA GeForce RTX 5070 Ti, 617.14, 16303, 12040, 95",
+      "stderr": ""
+    },
+    "props": {
+      "total_slots": 4,
+      "model_path": "C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-PQ2_0.gguf",
+      "model_alias": "C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-PQ2_0.gguf",
+      "build_info": "b10777-e3de71522",
+      "modalities": {
+        "vision": true,
+        "video": true,
+        "audio": false
+      },
+      "default_generation_settings": {
+        "n_ctx": 32768,
+        "params": {
+          "n_predict": -1,
+          "seed": 4294967295,
+          "temperature": 1.0,
+          "top_k": 20,
+          "top_p": 0.949999988079071,
+          "min_p": 0.05000000074505806
+        }
+      }
+    },
+    "server_version": {
+      "command": [
+        "C:\\projects\\llm-server\\bin\\cuda\\llama-server.exe",
+        "--version"
+      ],
+      "returncode": 0,
+      "stdout": "",
+      "stderr": "version: 0.2.0-dev (build 10777, commit e3de71522)\nbuilt with MSVC 19.44.35229.0 for Windows AMD64"
+    }
+  },
+  "finished_at": "2026-10-19T13:20:07.774702+00:00",
+  "interrupted": false,
+  "aggregates": [
+    {
+      "mode": "off",
+      "concurrency": 1,
+      "summary": {
+        "total_requests": 8,
+        "success_count": 8,
+        "complete_count": 0,
+        "truncated_count": 8,
+        "error_count": 0,
+        "finish_reasons": {
+          "length": 8
+        },
+        "batch_wall_sec": 37.88327879999997,
+        "total_predicted_tokens": 3072,
+        "system_throughput_tps": 81.09118580306207,
+        "latency_sec": {
+          "count": 8,
+          "mean": 4.7353138000007675,
+          "p50": 4.734705300001224,
+          "p95": 4.756162505000248
+        },
+        "ttft_sec": {
+          "count": 8,
+          "mean": 0.20567803750054736,
+          "p50": 0.20546475000082864,
+          "p95": 0.22561408999990817
+        },
+        "first_content_sec": {
+          "count": 8,
+          "mean": 0.20567803750054736,
+          "p50": 0.20546475000082864,
+          "p95": 0.22561408999990817
+        },
+        "complete_latency_sec": {
+          "count": 0,
+          "mean": null,
+          "p50": null,
+          "p95": null
+        },
+        "server_decode_tps": {
+          "count": 8,
+          "mean": 84.55638027462977,
+          "p50": 84.54548304446215,
+          "p95": 84.6538933756575
+        },
+        "server_prompt_tps": {
+          "count": 8,
+          "mean": 993.8931035871304,
+          "p50": 983.8039587523599,
+          "p95": 1090.2214176185216
+        }
+      }
+    },
+    {
+      "mode": "off",
+      "concurrency": 2,
+      "summary": {
+        "total_requests": 8,
+        "success_count": 8,
+        "complete_count": 0,
+        "truncated_count": 8,
+        "error_count": 0,
+        "finish_reasons": {
+          "length": 8
+        },
+        "batch_wall_sec": 23.491440399997373,
+        "total_predicted_tokens": 3072,
+        "system_throughput_tps": 130.7710360749247,
+        "latency_sec": {
+          "count": 8,
+          "mean": 5.872665087500536,
+          "p50": 5.920012599999609,
+          "p95": 6.000224545002675
+        },
+        "ttft_sec": {
+          "count": 8,
+          "mean": 0.5634206500003529,
+          "p50": 0.6031200500001432,
+          "p95": 0.701185390001774
+        },
+        "first_content_sec": {
+          "count": 8,
+          "mean": 0.5634206500003529,
+          "p50": 0.6031200500001432,
+          "p95": 0.701185390001774
+        },
+        "complete_latency_sec": {
+          "count": 0,
+          "mean": null,
+          "p50": null,
+          "p95": null
+        },
+        "server_decode_tps": {
+          "count": 8,
+          "mean": 72.14380172041587,
+          "p50": 72.15361761082798,
+          "p95": 72.27978315158057
+        },
+        "server_prompt_tps": {
+          "count": 8,
+          "mean": 489.72629788274764,
+          "p50": 522.5026057012111,
+          "p95": 545.8501738852384
+        }
+      }
+    },
+    {
+      "mode": "off",
+      "concurrency": 4,
+      "summary": {
+        "total_requests": 8,
+        "success_count": 8,
+        "complete_count": 0,
+        "truncated_count": 8,
+        "error_count": 0,
+        "finish_reasons": {
+          "length": 8
+        },
+        "batch_wall_sec": 17.98241880000205,
+        "total_predicted_tokens": 3072,
+        "system_throughput_tps": 170.8335254654201,
+        "latency_sec": {
+          "count": 8,
+          "mean": 8.990764975000275,
+          "p50": 8.99073214999953,
+          "p95": 9.363562545000786
+        },
+        "ttft_sec": {
+          "count": 8,
+          "mean": 0.9643636000005245,
+          "p50": 0.9643116000006557,
+          "p95": 1.3393440350002492
+        },
+        "first_content_sec": {
+          "count": 8,
+          "mean": 0.9643636000005245,
+          "p50": 0.9643116000006557,
+          "p95": 1.3393440350002492
+        },
+        "complete_latency_sec": {
+          "count": 0,
+          "mean": null,
+          "p50": null,
+          "p95": null
+        },
+        "server_decode_tps": {
+          "count": 8,
+          "mean": 47.719662497429624,
+          "p50": 47.719801373546034,
+          "p95": 47.73376890460854
+        },
+        "server_prompt_tps": {
+          "count": 8,
+          "mean": 226.93393728306586,
+          "p50": 230.6241985460723,
+          "p95": 249.54543691562515
+        }
+      }
+    }
+  ]
+}

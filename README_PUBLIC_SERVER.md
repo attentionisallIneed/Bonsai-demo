@@ -90,6 +90,9 @@ Windows 校准细节见 [KV-CACHE.md](KV-CACHE.md)。
 
 ## 可复现测量
 
+本机 64K/128K/256K、微批扫描及并发测量见
+[RTX 5070 Ti 实测报告](community-benchmarks/bonsai2/cuda-rtx5070ti-16gb-windows.md)。
+
 压测通过环境变量读取密钥。报告保留完整生成输出，因此只应使用公开或合成输入。
 
 ```powershell
@@ -97,6 +100,7 @@ $env:BONSAI_BASE_URL = 'http://127.0.0.1:8080'
 # BONSAI_API_KEY 只在本地环境中设置。
 python scripts/benchmark_throughput.py --modes off --concurrency 1,2,4 --requests 8 --repeat 3 --cache cold --output performance-results/throughput.json
 python scripts/benchmark_throughput.py --modes medium --budget 2048 --concurrency 1 --requests 4 --cache warm --output performance-results/thinking.json
+python scripts/benchmark_context.py --context-size 131072 --reserve-tokens 2048 --output performance-results/context-128k.json
 ```
 
 比较完成请求数、截断数、TTFT、首正文时间、p50/p95、服务端 decode 速度和总吞吐。

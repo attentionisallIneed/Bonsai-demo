@@ -1,0 +1,161 @@
+{
+  "model": "bonsai",
+  "reasoning_effort": "medium",
+  "results": [
+    {
+      "case": "text",
+      "passed": true,
+      "answer": "Hi there! How can I help you today?",
+      "seconds": 2.4690000000009604
+    },
+    {
+      "case": "tools",
+      "passed": true,
+      "answer": {
+        "available": 11
+      },
+      "tool_attempts": 2,
+      "seconds": 2.7030000000013388
+    },
+    {
+      "case": "vision",
+      "passed": true,
+      "answer": "red",
+      "image": "synthetic 128x128 red PNG",
+      "seconds": 3.0
+    }
+  ],
+  "requests": [
+    {
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "success": true,
+      "seconds": 2.4690000000009604,
+      "usage": {
+        "completion_tokens": 35,
+        "prompt_tokens": 27,
+        "total_tokens": 62,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "timings": {
+        "cache_n": 0,
+        "prompt_n": 27,
+        "prompt_ms": 352.876,
+        "prompt_per_token_ms": 13.06948148148148,
+        "prompt_per_second": 76.51412960926784,
+        "predicted_n": 35,
+        "predicted_ms": 414.617,
+        "predicted_per_token_ms": 12.194617647058823,
+        "predicted_per_second": 82.00339108140766
+      },
+      "finish_reason": "stop"
+    },
+    {
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "success": true,
+      "seconds": 1.625,
+      "usage": {
+        "completion_tokens": 105,
+        "prompt_tokens": 309,
+        "total_tokens": 414,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "timings": {
+        "cache_n": 0,
+        "prompt_n": 309,
+        "prompt_ms": 263.071,
+        "prompt_per_token_ms": 0.8513624595469257,
+        "prompt_per_second": 1174.5878489077093,
+        "predicted_n": 105,
+        "predicted_ms": 1230.515,
+        "predicted_per_token_ms": 11.831875,
+        "predicted_per_second": 84.51745813744651
+      },
+      "finish_reason": "tool_calls"
+    },
+    {
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "success": true,
+      "seconds": 0.5940000000009604,
+      "usage": {
+        "completion_tokens": 40,
+        "prompt_tokens": 372,
+        "total_tokens": 412,
+        "prompt_tokens_details": {
+          "cached_tokens": 305
+        }
+      },
+      "timings": {
+        "cache_n": 305,
+        "prompt_n": 67,
+        "prompt_ms": 133.302,
+        "prompt_per_token_ms": 1.9895820895522387,
+        "prompt_per_second": 502.61811525708544,
+        "predicted_n": 40,
+        "predicted_ms": 468.93,
+        "predicted_per_token_ms": 12.023846153846154,
+        "predicted_per_second": 83.16806346362998
+      },
+      "finish_reason": "tool_calls"
+    },
+    {
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "success": true,
+      "seconds": 0.48400000000037835,
+      "usage": {
+        "completion_tokens": 26,
+        "prompt_tokens": 434,
+        "total_tokens": 460,
+        "prompt_tokens_details": {
+          "cached_tokens": 368
+        }
+      },
+      "timings": {
+        "cache_n": 368,
+        "prompt_n": 66,
+        "prompt_ms": 141.856,
+        "prompt_per_token_ms": 2.1493333333333333,
+        "prompt_per_second": 465.2605459057072,
+        "predicted_n": 26,
+        "predicted_ms": 302.395,
+        "predicted_per_token_ms": 12.095799999999999,
+        "predicted_per_second": 82.67332462507649
+      },
+      "finish_reason": "stop"
+    },
+    {
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "success": true,
+      "seconds": 3.0,
+      "usage": {
+        "completion_tokens": 67,
+        "prompt_tokens": 46,
+        "total_tokens": 113,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "timings": {
+        "cache_n": 0,
+        "prompt_n": 46,
+        "prompt_ms": 2011.312,
+        "prompt_per_token_ms": 43.72417391304348,
+        "prompt_per_second": 22.870643639574567,
+        "predicted_n": 67,
+        "predicted_ms": 842.078,
+        "predicted_per_token_ms": 12.758757575757576,
+        "predicted_per_second": 78.37753747277569
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "passed": true
+}

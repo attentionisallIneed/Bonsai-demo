@@ -1,0 +1,81 @@
+{
+  "max_actual_process_command": "\"C:\\projects\\llm-server\\bin\\cuda\\llama-server.exe\" -m C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-PQ2_0.gguf --host 127.0.0.1 --port 18080 -ngl 99 -fa on -c 262144 --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.05 --jinja --mmproj C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-mmproj-Q8_0.gguf --no-mmproj-offload --cache-type-k q4_0 --cache-type-v q4_0 --kv-mean-center C:\\projects\\llm-server\\models\\bonsai2-gguf\\27B\\Ternary-Bonsai-2-27B-PQ2_0-kv-bias.gguf --webui-config-file C:\\projects\\llm-server\\scripts\\webui-config.json --parallel 1 --cache-ram 2048 -b 2048 -ub 256 -t 4 -tb 6 --poll 0 --chat-template-kwargs \"{\\\"reasoning_effort\\\":\\\"medium\\\"}\" --api-key <redacted>",
+  "recorded_utc": "2026-10-19T13:16:07.7271082Z",
+  "profiles": {
+    "balanced": {
+      "context": 65536,
+      "parallel": 1,
+      "kv_unified": false,
+      "kv4": false,
+      "mmproj_cpu": false,
+      "cache_ram_mib": 2048,
+      "batch": 2048,
+      "ubatch": 512,
+      "threads": 4,
+      "threads_batch": 6,
+      "reasoning_effort": "medium"
+    },
+    "throughput": {
+      "context": 32768,
+      "parallel": 4,
+      "kv_unified": true,
+      "kv4": false,
+      "mmproj_cpu": false,
+      "cache_ram_mib": 2048,
+      "batch": 2048,
+      "ubatch": 512,
+      "threads": 4,
+      "threads_batch": 6,
+      "reasoning_effort": "medium"
+    },
+    "long": {
+      "context": 131072,
+      "parallel": 1,
+      "kv_unified": false,
+      "kv4": true,
+      "mmproj_cpu": true,
+      "cache_ram_mib": 2048,
+      "batch": 2048,
+      "ubatch": 512,
+      "threads": 4,
+      "threads_batch": 6,
+      "reasoning_effort": "medium"
+    },
+    "max": {
+      "context": 262144,
+      "parallel": 1,
+      "kv_unified": false,
+      "kv4": true,
+      "mmproj_cpu": true,
+      "cache_ram_mib": 2048,
+      "batch": 2048,
+      "ubatch": 256,
+      "threads": 4,
+      "threads_batch": 6,
+      "reasoning_effort": "medium"
+    }
+  },
+  "calibration": {
+    "schema_version": 1,
+    "model_file": "Ternary-Bonsai-2-27B-PQ2_0.gguf",
+    "model_size": 7206168928,
+    "model_sha256": "3907dc1658db1f78a9826bf8d5bcb8dc65db0d466388937af57f2294fae62ec1",
+    "model_last_write_utc": "2026-10-11T02:52:16.747479Z",
+    "bias_sha256": "8f7d4c0cfdd39003a3c74d40bcf05fb6f087532162abc628eb40d5ffe5503e06",
+    "k_rot": false,
+    "rotation_disable": "1",
+    "cache_type_k": "q4_0",
+    "cache_type_v": "q4_0",
+    "context_size": 512,
+    "chunks": -1,
+    "corpus_sha256": "aaf7faeb5def746c1ddf5adee8e0280710a1f459e25d54b8b1dbd04f02b50ddb",
+    "created_utc": "2026-10-19T13:01:50.638943Z"
+  },
+  "context_reports": {
+    "long": "context-128k-q4.json",
+    "balanced": "context-64k-f16.json",
+    "max": "context-256k-q4.json"
+  },
+  "launch_pattern": ".\\run_server.ps1 -Profile <profile> -Port 18080 -NoBrowser -NoTunnel",
+  "release": "prism-b10777-e3de715 cuda-13.3"
+}
