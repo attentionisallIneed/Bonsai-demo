@@ -232,3 +232,11 @@ llama.cpp
 .venv-hermes/
 .agent-browser/
 agent-runs/
+
+# FRP tunnel
+frp/
+
+# Machine-local authentication, settings, and generated performance reports
+.bonsai-server.local.json
+performance-results/
+llama*.log

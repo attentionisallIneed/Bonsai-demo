@@ -1,4 +1,22 @@
+[CmdletBinding(PositionalBinding=$false)]
+param(
+    [ValidateSet("auto", "balanced", "throughput", "long", "max")]
+    [string]$Profile = "",
+    [int]$Port = 0,
+    [switch]$DryRun,
+    [Parameter(ValueFromRemainingArguments=$true)]
+    [string[]]$ServerArguments
+)
+
 $ErrorActionPreference = "Stop"
+$ExtraArgs = @($ServerArguments | Where-Object { $null -ne $_ })
+if (-not $Profile) { $Profile = if ($env:BONSAI_PROFILE) { $env:BONSAI_PROFILE } else { "auto" } }
+$ProfileConfig = $null
+if ($Profile -ne "auto") {
+    $Profiles = Get-Content -LiteralPath (Join-Path $PSScriptRoot "server-profiles.json") -Raw | ConvertFrom-Json
+    $ProfileConfig = $Profiles.PSObject.Properties[$Profile].Value
+    if (-not $ProfileConfig) { throw "Unknown BONSAI_PROFILE '$Profile'." }
+}
 
 
 $BonsaiModel  = if ($env:BONSAI_MODEL)  { $env:BONSAI_MODEL.ToUpperInvariant() } else { "27B" }
@@ -28,13 +46,17 @@ Set-Location $DemoDir
 
 # Bind to localhost by default; override with BONSAI_HOST=0.0.0.0 for LAN/remote.
 $HostAddress = if ($env:BONSAI_HOST) { $env:BONSAI_HOST } else { "127.0.0.1" }
-$Port = 8080
+if ($Port -eq 0) { $Port = if ($env:BONSAI_PORT) { [int]$env:BONSAI_PORT } else { 8080 } }
+if ($Port -lt 1 -or $Port -gt 65535) { throw "Port must be between 1 and 65535." }
+for ($i = 0; $i -lt $ExtraArgs.Count - 1; $i++) {
+    if ($ExtraArgs[$i] -in @("--port")) { $Port = [int]$ExtraArgs[$i + 1] }
+}
 
-try {
+if (-not $DryRun) { try {
     $null = Invoke-WebRequest -Uri "http://localhost:$Port/health" -TimeoutSec 2
     Write-Host "[WARN] Health endpoint responded on port $Port; llama-server may already be running." -ForegroundColor Yellow
     exit 1
-} catch {}
+} catch {} }
 
 # Captured unconditionally: the finally block at the end restores it on every
 # launch, not just the ones where the KV4 bias block below sets it.
@@ -115,10 +137,11 @@ $env:Path = "$BinDir;$env:Path"
 # Default context: RAM-tiered cap. BONSAI_CTX=0 or unset both mean "auto" ->
 # this tiered default (never -c 0, which uses the model's full training context
 # and OOMs constrained machines). Pass an explicit number to override.
-$CtxDefault = if ($env:BONSAI_CTX -and $env:BONSAI_CTX -ne "0") { $env:BONSAI_CTX } else {
+$CtxDefault = if ($env:BONSAI_CTX -and $env:BONSAI_CTX -ne "0") { $env:BONSAI_CTX } elseif ($ProfileConfig) { "$($ProfileConfig.context)" } else {
     $MemGB = [math]::Floor((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB)
     if ($MemGB -le 11) { "8192" } elseif ($MemGB -le 23) { "16384" } elseif ($MemGB -le 35) { "32768" } elseif ($MemGB -le 71) { "65536" } elseif ($BonsaiModel -eq "27B") { "131072" } else { "65536" }
 }
+if ([int]$CtxDefault -lt 512 -or [int]$CtxDefault -gt 262144) { throw "BONSAI_CTX must be 512..262144 (0 = auto)." }
 
 $Ngl = if ($env:BONSAI_NGL) {
     $env:BONSAI_NGL
@@ -202,9 +225,23 @@ if ($BonsaiModel -eq "27B") {
     # scripts/make_kv_bias.sh is present it is applied automatically for
     # better quality. Mirrors start_llama_server.sh.
     $KvArgs = @()
-    if ($env:BONSAI_KV4 -eq "1") {
+    $UseKv4 = if ($null -ne $env:BONSAI_KV4) { $env:BONSAI_KV4 -eq "1" } else { $ProfileConfig -and $ProfileConfig.kv4 }
+    if ($UseKv4) {
         $KvArgs = @("--cache-type-k", "q4_0", "--cache-type-v", "q4_0")
-        $KvBias = Get-ChildItem -Path $ModelDir -Filter *kv-bias*.gguf -File -ErrorAction SilentlyContinue | Select-Object -First 1
+        $BiasPath = Join-Path $ModelDir ($Model.BaseName + "-kv-bias.gguf")
+        $KvBias = Get-Item -LiteralPath $BiasPath -ErrorAction SilentlyContinue
+        # Accept the legacy family-level bias only when it identifies this model.
+        if (-not $KvBias) {
+            $LegacyBias = Join-Path $ModelDir ($Display + "-kv-bias.gguf")
+            $LegacyMetadata = $LegacyBias + ".json"
+            if (Test-Path -LiteralPath $LegacyMetadata) {
+                $BiasMetadata = Get-Content -LiteralPath $LegacyMetadata -Raw | ConvertFrom-Json
+                if ($BiasMetadata.model_file -eq $Model.Name) { $KvBias = Get-Item -LiteralPath $LegacyBias -ErrorAction SilentlyContinue }
+            }
+        }
+        if (-not $KvBias -and $Profile -in @("long", "max") -and -not $DryRun) {
+            throw "Profile '$Profile' requires a calibrated KV bias. Run .\scripts\make_kv_bias.ps1 first."
+        }
         if ($KvBias) {
             # The bias is calibrated with K-rotation off; inference must match
             # (the loader rejects a mismatch by design). The finally block below
@@ -215,7 +252,7 @@ if ($BonsaiModel -eq "27B") {
             $KvArgs += @("--kv-mean-center", $KvBias.FullName)
             Write-Host "  KV cache: q4_0 + mean-centering ($($KvBias.Name))" -ForegroundColor Green
         } else {
-            Write-Host "  KV cache: q4_0 (no bias; run scripts/make_kv_bias.sh for better quality)" -ForegroundColor Green
+            Write-Host "  KV cache: q4_0 (no matching bias; run scripts/make_kv_bias.ps1 for better quality)" -ForegroundColor Yellow
         }
     }
     $ServerArgs = @(
@@ -229,7 +266,8 @@ if ($BonsaiModel -eq "27B") {
         $ServerArgs += @("--mmproj", $Mmproj.FullName)
         # BONSAI_MMPROJ_CPU=1 keeps the vision projector in system RAM instead of
         # VRAM (frees ~0.9 GiB for KV/context; slower image prefill only).
-        if ($env:BONSAI_MMPROJ_CPU -in @("1", "true", "yes", "on")) {
+        $MmprojCpu = if ($null -ne $env:BONSAI_MMPROJ_CPU) { $env:BONSAI_MMPROJ_CPU -in @("1", "true", "yes", "on") } else { $ProfileConfig -and $ProfileConfig.mmproj_cpu }
+        if ($MmprojCpu) {
             $ServerArgs += "--no-mmproj-offload"
             Write-Host "  Vision:  projector on CPU/RAM (BONSAI_MMPROJ_CPU=1)" -ForegroundColor Green
         }
@@ -253,11 +291,38 @@ if ($BonsaiModel -eq "27B") {
     if (Test-Path $WebuiConfig) { $ServerArgs += @("--webui-config-file", $WebuiConfig) }
 }
 
+if ($ProfileConfig) {
+    $Parallel = if ($env:BONSAI_PARALLEL) { [int]$env:BONSAI_PARALLEL } else { [int]$ProfileConfig.parallel }
+    if ($BonsaiModel -eq "27B" -and $SpecArgs.Count -gt 0) { $Parallel = 1 }
+    if ($Parallel -lt 1) { throw "BONSAI_PARALLEL must be positive." }
+    $ServerArgs += @("--parallel", "$Parallel", "--cache-ram", "$($ProfileConfig.cache_ram_mib)",
+        "-b", "$($ProfileConfig.batch)", "-ub", "$($ProfileConfig.ubatch)",
+        "-t", "$($ProfileConfig.threads)", "-tb", "$($ProfileConfig.threads_batch)", "--poll", "0")
+    if ($ProfileConfig.kv_unified) { $ServerArgs += "--kv-unified" }
+    $EffortJson = '{"reasoning_effort":"' + $ProfileConfig.reasoning_effort + '"}'
+    if ($PSVersionTable.PSEdition -eq 'Desktop') { $EffortJson = $EffortJson.Replace('"', '\"') }
+    if ($BonsaiModel -eq "27B") { $ServerArgs += @("--chat-template-kwargs", $EffortJson) }
+} elseif ($env:BONSAI_PARALLEL) {
+    $ServerArgs += @("--parallel", $env:BONSAI_PARALLEL)
+}
+if ($env:BONSAI_API_KEY) { $ServerArgs += @("--api-key", $env:BONSAI_API_KEY) }
+
 $EffCtx = if ($BonsaiModel -eq "27B") { $Ctx } else { $CtxDefault }
 Write-Host "  Context: -c $EffCtx (override with BONSAI_CTX, 0 = auto)"
 try {
-    & $Bin @ServerArgs @args
-    $code = $LASTEXITCODE
+    if ($DryRun) {
+        $SafeArgs = @($ServerArgs + $ExtraArgs)
+        for ($i = 0; $i -lt $SafeArgs.Count; $i++) {
+            if ($SafeArgs[$i] -in @("--api-key", "--api-key-file")) {
+                if ($i + 1 -lt $SafeArgs.Count) { $SafeArgs[$i + 1] = "<redacted>" }
+            } elseif ($SafeArgs[$i] -match '^--api-key(?:-file)?=') { $SafeArgs[$i] = "--api-key=<redacted>" }
+        }
+        @{ binary=$Bin; profile=$Profile; arguments=$SafeArgs } | ConvertTo-Json -Depth 4
+        $code = 0
+    } else {
+        & $Bin @ServerArgs @ExtraArgs
+        $code = $LASTEXITCODE
+    }
 } finally {
     # Don't leak the KV4 bias flag into the parent PowerShell session.
     if ($null -eq $priorRotDisable) {

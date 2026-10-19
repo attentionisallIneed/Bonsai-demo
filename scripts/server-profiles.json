@@ -1,0 +1,54 @@
+{
+  "balanced": {
+    "context": 65536,
+    "parallel": 1,
+    "kv_unified": false,
+    "kv4": false,
+    "mmproj_cpu": false,
+    "cache_ram_mib": 2048,
+    "batch": 2048,
+    "ubatch": 512,
+    "threads": 4,
+    "threads_batch": 6,
+    "reasoning_effort": "medium"
+  },
+  "throughput": {
+    "context": 32768,
+    "parallel": 4,
+    "kv_unified": true,
+    "kv4": false,
+    "mmproj_cpu": false,
+    "cache_ram_mib": 2048,
+    "batch": 2048,
+    "ubatch": 512,
+    "threads": 4,
+    "threads_batch": 6,
+    "reasoning_effort": "medium"
+  },
+  "long": {
+    "context": 131072,
+    "parallel": 1,
+    "kv_unified": false,
+    "kv4": true,
+    "mmproj_cpu": true,
+    "cache_ram_mib": 2048,
+    "batch": 2048,
+    "ubatch": 512,
+    "threads": 4,
+    "threads_batch": 6,
+    "reasoning_effort": "medium"
+  },
+  "max": {
+    "context": 262144,
+    "parallel": 1,
+    "kv_unified": false,
+    "kv4": true,
+    "mmproj_cpu": true,
+    "cache_ram_mib": 2048,
+    "batch": 2048,
+    "ubatch": 256,
+    "threads": 4,
+    "threads_batch": 6,
+    "reasoning_effort": "medium"
+  }
+}
