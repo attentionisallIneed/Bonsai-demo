@@ -28,6 +28,9 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -X utf8 -m unittest discover -s tests -p 'test_benchmark*.py' -v
+      - name: Full suite on its POSIX test platform
+        if: runner.os == 'Linux'
+        run: python -X utf8 -m unittest discover -s tests -v
 
   windows-runtime:
     runs-on: windows-latest
