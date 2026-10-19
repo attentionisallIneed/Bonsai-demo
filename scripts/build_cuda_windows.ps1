@@ -13,16 +13,20 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+# Resolve relative paths before entering the source checkout.
+$RepoDir = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($RepoDir)
 
 # ── Clone if needed ──
 if (-not (Test-Path $RepoDir)) {
     Write-Host "llama.cpp not found at $RepoDir - cloning from PrismML-Eng ..."
     git clone -b prism https://github.com/PrismML-Eng/llama.cpp.git $RepoDir
+    if ($LASTEXITCODE -ne 0) { throw "git clone failed (exit $LASTEXITCODE); no binaries were copied." }
 }
+if (-not (Test-Path -LiteralPath $RepoDir -PathType Container)) { throw "llama.cpp checkout not found: $RepoDir" }
 
 # ── Find CUDA toolkit ──
 if (-not $CudaPath) {
-    $nvcc = Get-Command nvcc -ErrorAction SilentlyContinue
+    $nvcc = Get-Command nvcc -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($nvcc) {
         $CudaPath = (Split-Path (Split-Path $nvcc.Source))
     } else {
@@ -45,33 +49,43 @@ if (-not $CudaPath -or -not (Test-Path $CudaPath)) {
     Write-Host "[ERR] CUDA toolkit not found." -ForegroundColor Red
     Write-Host "      Install from https://developer.nvidia.com/cuda-downloads" -ForegroundColor Yellow
     Write-Host "      Or specify: .\scripts\build_cuda_windows.ps1 -CudaPath 'C:\path\to\cuda'" -ForegroundColor Yellow
-    exit 1
+    throw "CUDA toolkit not found."
 }
 
 $Nvcc = Join-Path $CudaPath "bin\nvcc.exe"
 if (-not (Test-Path $Nvcc)) {
     Write-Host "[ERR] nvcc not found at $Nvcc" -ForegroundColor Red
-    exit 1
+    throw "nvcc not found at $Nvcc"
 }
 
 # ── Detect CUDA version ──
 $nvccOutput = & $Nvcc --version 2>&1 | Out-String
+if ($LASTEXITCODE -ne 0) { throw "nvcc --version failed (exit $LASTEXITCODE); no binaries were copied." }
 if ($nvccOutput -match 'release (\d+)\.(\d+)') {
     $CudaMajor = [int]$Matches[1]
     $CudaMinor = [int]$Matches[2]
     $CudaVersion = "$CudaMajor.$CudaMinor"
 } else {
     Write-Host "[ERR] Could not parse CUDA version from nvcc" -ForegroundColor Red
-    exit 1
+    throw "Could not parse CUDA version from nvcc."
 }
 
 # ── Default architectures ──
 if (-not $Archs) {
     if ($CudaMajor -ge 13) {
         $Archs = "80;86;89;90;100;120"
-    } else {
+    } elseif ($CudaMajor -eq 12 -and $CudaMinor -ge 8) {
         $Archs = "80;86;89;90;120"
+    } else {
+        # SM120 first became available in CUDA 12.8. In particular the 12.4
+        # and 12.6 toolkits cannot compile a fat binary containing that target.
+        # https://docs.nvidia.com/cuda/archive/12.8.0/cuda-toolkit-release-notes/
+        $Archs = "80;86;89;90"
     }
+}
+if (($CudaMajor -lt 12 -or ($CudaMajor -eq 12 -and $CudaMinor -lt 8)) -and
+    @($Archs -split ';' | Where-Object { $_ -match '^(100|101|120)([af])?(-real|-virtual)?$' }).Count -gt 0) {
+    throw "Blackwell architectures (100/101/120) require CUDA 12.8 or newer; this toolkit is $CudaVersion."
 }
 
 $Dest = Join-Path "bin" $OutputDir
@@ -86,43 +100,52 @@ Write-Host "  Output: $Dest"
 Write-Host ""
 
 # ── Ensure cmake is available ──
-if (-not (Get-Command cmake -ErrorAction SilentlyContinue)) {
+$Cmake = Get-Command cmake -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+if (-not $Cmake) {
     Write-Host "[ERR] CMake not found. Install from https://cmake.org/download/" -ForegroundColor Red
     Write-Host "      Or if you ran setup.ps1, activate the venv first:" -ForegroundColor Yellow
     Write-Host "      & .venv\Scripts\Activate.ps1" -ForegroundColor Yellow
-    exit 1
+    throw "CMake not found."
 }
 
 # ── Configure ──
-$env:CUDACXX = $Nvcc
-Push-Location $RepoDir
+$priorCudacxx = $env:CUDACXX
+$pushedLocation = $false
+try {
+    $env:CUDACXX = $Nvcc
+    Push-Location -LiteralPath $RepoDir
+    $pushedLocation = $true
 
-cmake -B $BuildDir `
-    -DGGML_CUDA=ON `
-    -DCMAKE_CUDA_COMPILER="$Nvcc" `
-    -DCMAKE_CUDA_ARCHITECTURES="$Archs" `
-    -DCMAKE_BUILD_TYPE=Release
+    & $Cmake.Source -B $BuildDir `
+        -DGGML_CUDA=ON `
+        -DCMAKE_CUDA_COMPILER="$Nvcc" `
+        -DCMAKE_CUDA_ARCHITECTURES="$Archs" `
+        -DCMAKE_BUILD_TYPE=Release
+    if ($LASTEXITCODE -ne 0) { throw "CMake configure failed (exit $LASTEXITCODE); no binaries were copied." }
 
 # ── Build ──
 # Limit parallelism to avoid OOM during CUDA compilation.
-try {
-    $sysInfo = Get-CimInstance Win32_ComputerSystem -ErrorAction Stop
-    $memGB = [math]::Floor($sysInfo.TotalPhysicalMemory / 1GB)
-    if ($memGB -lt 16) {
-        $buildJobs = 2
-        Write-Host "  Low RAM (~${memGB} GB) -- using -j $buildJobs" -ForegroundColor Yellow
-    } else {
-        $buildJobs = [math]::Min(16, $sysInfo.NumberOfLogicalProcessors)
-        Write-Host "  Using -j $buildJobs"
+    try {
+        $sysInfo = Get-CimInstance Win32_ComputerSystem -ErrorAction Stop
+        $memGB = [math]::Floor($sysInfo.TotalPhysicalMemory / 1GB)
+        if ($memGB -lt 16) {
+            $buildJobs = 2
+            Write-Host "  Low RAM (~${memGB} GB) -- using -j $buildJobs" -ForegroundColor Yellow
+        } else {
+            $buildJobs = [math]::Min(16, $sysInfo.NumberOfLogicalProcessors)
+            Write-Host "  Using -j $buildJobs"
+        }
+    } catch {
+        $buildJobs = 4
+        Write-Host "  Could not detect RAM -- using -j $buildJobs" -ForegroundColor Yellow
     }
-} catch {
-    $buildJobs = 4
-    Write-Host "  Could not detect RAM -- using -j $buildJobs" -ForegroundColor Yellow
+
+    & $Cmake.Source --build $BuildDir --config Release -j $buildJobs
+    if ($LASTEXITCODE -ne 0) { throw "CMake build failed (exit $LASTEXITCODE); no binaries were copied." }
+} finally {
+    if ($pushedLocation) { Pop-Location }
+    $env:CUDACXX = $priorCudacxx
 }
-
-cmake --build $BuildDir --config Release -j $buildJobs
-
-Pop-Location
 
 # ── Copy binaries ──
 Write-Host ""
@@ -142,7 +165,7 @@ foreach ($binDir in $binDirs) {
         Write-Host "  Copied $($exe.Name)"
     }
 }
-if ($copied.Count -eq 0) { Write-Host "  [WARN] no llama-*.exe found to copy" -ForegroundColor Yellow }
+if ($copied.Count -eq 0) { throw "CMake build produced no llama-*.exe binaries." }
 
 # ── Copy DLLs ──
 Write-Host ""

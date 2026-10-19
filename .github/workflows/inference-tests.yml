@@ -44,6 +44,12 @@ jobs:
       - name: Runtime and calibration fixtures (Windows PowerShell 5.1)
         shell: powershell
         run: ./tests/test_runtime_windows.ps1
+      - name: CUDA build failure fixtures (PowerShell 7)
+        shell: pwsh
+        run: ./tests/test_cuda_build_windows.ps1
+      - name: CUDA build failure fixtures (Windows PowerShell 5.1)
+        shell: powershell
+        run: ./tests/test_cuda_build_windows.ps1
 
   shell-syntax:
     runs-on: ubuntu-latest
