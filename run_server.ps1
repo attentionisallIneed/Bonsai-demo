@@ -38,8 +38,12 @@ try {
             Write-Host "A server is already running on port $Port. Stop it before changing profiles."
             exit 1
         }
-        if ($EnableTunnel -and -not (Get-Process -Name frpc -ErrorAction SilentlyContinue)) {
-            Start-Process -FilePath $FrpExe -ArgumentList @("-c", ('"' + $FrpConfig + '"')) -WorkingDirectory $PSScriptRoot -WindowStyle Hidden
+        if ($EnableTunnel) {
+            $ExistingTunnel = @(Get-CimInstance Win32_Process -Filter "Name = 'frpc.exe'" |
+                Where-Object { $_.ExecutablePath -eq $FrpExe })
+            if ($ExistingTunnel.Count -eq 0) {
+                Start-Process -FilePath $FrpExe -ArgumentList @("-c", ('"' + $FrpConfig + '"')) -WorkingDirectory $PSScriptRoot -WindowStyle Hidden
+            }
         }
         $OpenBrowser = -not $NoBrowser -and ($null -eq $LocalConfig -or $LocalConfig.OpenBrowser -ne $false)
         if ($OpenBrowser) {

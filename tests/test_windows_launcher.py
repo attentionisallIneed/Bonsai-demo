@@ -130,6 +130,37 @@ class ArgvStub {
         self.assertEqual(option(report['arguments'], '-c'), '98304')
         self.assertIn('131072', report['arguments'])
 
+    def test_other_projects_tunnel_does_not_suppress_this_project(self):
+        self.compile_native_stub()
+        frp = self.root / 'frp'
+        frp.mkdir()
+        (frp / 'frpc.exe').touch()
+        (frp / 'frpc.toml').touch()
+        (self.root / '.bonsai-server.local.json').write_text(json.dumps({
+            'ApiKey': 'fixture-only-secret', 'EnableTunnel': True, 'OpenBrowser': False}))
+        command = r'''
+function Invoke-WebRequest { throw 'fixture: no existing server' }
+function Get-CimInstance {
+    param($ClassName, $Filter)
+    [pscustomobject]@{ExecutablePath=($env:BONSAI_TEST_ROOT + '-other\frp\frpc.exe')}
+    if ($env:BONSAI_TEST_MATCH -eq '1') {
+        [pscustomobject]@{ExecutablePath=($env:BONSAI_TEST_ROOT + '\frp\frpc.exe')}
+    }
+}
+function Start-Process {
+    param($FilePath, $ArgumentList, $WorkingDirectory, $WindowStyle)
+    Write-Output ('START:' + $FilePath)
+}
+& (Join-Path $env:BONSAI_TEST_ROOT 'run_server.ps1') -NoBrowser -Port 18089
+'''
+        for matching, expected_starts in (('0', 1), ('1', 0)):
+            environment = dict(self.env, BONSAI_TEST_ROOT=str(self.root), BONSAI_TEST_MATCH=matching)
+            completed = subprocess.run([SHELL, '-NoProfile', '-Command', command], cwd=self.root,
+                                       env=environment, capture_output=True, text=True,
+                                       encoding='utf-8', errors='replace', timeout=25)
+            self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+            self.assertEqual(sum(line.startswith('START:') for line in completed.stdout.splitlines()), expected_starts)
+
     def test_throughput_shares_pool_and_port_is_forwarded(self):
         report, _ = self.run_launcher('-Profile', 'throughput', '--port', '18081')
         self.assertEqual(option(report['arguments'], '--parallel'), '4')

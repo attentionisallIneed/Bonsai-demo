@@ -124,6 +124,23 @@ Then start the server and open http://localhost:8080:
 .\scripts\start_llama_server.ps1
 ```
 
+For the RTX 5070 Ti 16GB / 32GB RAM configuration, use the Windows profiles:
+
+```powershell
+.\run_server.ps1 -Profile balanced
+# Later, stop the server before changing profiles:
+.\stop_server.ps1
+```
+
+Double-clicking `run_server.bat` uses `balanced` (64K context, one slot).
+`throughput` uses four slots with a shared 32K pool; `long` and `max` configure
+128K and 256K with calibrated Q4 KV. These are hardware-specific capacity
+settings; measure memory and response timings on your machine. Update the Prism
+runtime and run `.\scripts\make_kv_bias.ps1` before selecting `long` or `max`.
+Use `-Profile auto` to retain the standard launcher's RAM-tiered defaults.
+The [Windows service and tuning guide](README_PUBLIC_SERVER.md) covers profile
+overrides, local API keys, optional FRP, dry runs and reproducible benchmarks.
+
 ---
 
 ## Speed Benchmarks
@@ -167,11 +184,11 @@ Every launcher is configured through environment variables. The most common ones
 | `BONSAI_MODEL` | `27B` | `27B` for Bonsai 2 | See the [Bonsai 1 guide](Bonsai1_README.md) for smaller models. |
 | `BONSAI_FAMILY` | `bonsai2` | `bonsai2` | Earlier families: [Bonsai 1 guide](Bonsai1_README.md#setup-and-running). |
 | `BONSAI_NGL` | auto-detect | int; `0` = CPU-only | GPU layer offload. |
-| `BONSAI_CTX` | auto (RAM-tiered) | `0`, or ≤ `262144` | Context length (`0`/unset = automatic safe size). |
+| `BONSAI_CTX` | RAM-tiered, or selected Windows profile | `0`, or ≤ `262144` | Total context pool; `0`/unset uses the selected profile, or RAM tiers without a profile. |
 | `BONSAI_HOST` | `127.0.0.1` | any bind address | Server bind address. A non-loopback value exposes the server — see the security note in the full reference. |
-| `BONSAI_KV4` | `0` | `1` | 4-bit KV cache for long contexts ([KV-CACHE.md](KV-CACHE.md)). |
+| `BONSAI_KV4` | `0`; `1` in Windows `long`/`max` | `0`, `1` | 4-bit KV cache for long contexts; explicit `0` overrides profile quantization ([KV-CACHE.md](KV-CACHE.md)). |
 
-**Full reference** — all 24 variables (model/setup, server, MLX, Open WebUI, tools, and platform coverage): **[environment_variables.md](environment_variables.md)**.
+**Full reference:** model/setup, server, Windows profiles, benchmarks, MLX, Open WebUI, tools, and platform coverage: **[environment_variables.md](environment_variables.md)**.
 
 ## Upstream Status for Bonsai 2
 
@@ -308,7 +325,7 @@ Upload images in the chat UI (`+` in the message box) or send `image_url` parts 
 
 Optional features for the llama.cpp chat server:
 
-- **4-bit KV cache**: `BONSAI_KV4=1` cuts KV-cache memory roughly 3.5x for very long contexts, with an optional calibration bias for better quality (`./scripts/make_kv_bias.sh`). Details: [KV-CACHE.md](KV-CACHE.md).
+- **4-bit KV cache**: `BONSAI_KV4=1` cuts KV-cache memory roughly 3.5x for very long contexts, with an optional calibration bias for better quality (`./scripts/make_kv_bias.sh`, or `.\scripts\make_kv_bias.ps1` on Windows). Windows `long`/`max` profiles require the matching calibrated bias and model identity metadata. Details: [KV-CACHE.md](KV-CACHE.md).
 - **Vision projector in RAM**: `BONSAI_MMPROJ_CPU=1` keeps the 27B's vision projector in system RAM instead of VRAM (`--no-mmproj-offload`), freeing VRAM for KV/context on tight cards. The cost is a slower image prompt (the projector runs on CPU); text-only chat is unaffected.
 
 ### Context Size
@@ -316,6 +333,12 @@ Optional features for the llama.cpp chat server:
 Bonsai 2 27B supports up to **262,144 tokens** of context. The FP16 KV cache costs 64 KiB per token (~6.3 GiB at 100K), so **100K context fits on many consumer devices even without KV-cache quantization**. The model's hybrid attention keeps the cache small for its size.
 
 The launch scripts pick a **default context sized to your machine's RAM**, from 8K on small machines up to 131K for the 27B on machines with more than 71 GB (roughly 0.5 to 8 GiB of KV cache), so memory use stays predictable. Override with the `BONSAI_CTX` environment variable: pass any number up to 262144, or `0` (the same as leaving it unset) for the automatic RAM-tiered size. To force the model's full training context, pass the explicit number (e.g. `BONSAI_CTX=262144`) — only recommended on machines with plenty of headroom, since the scripts will not silently do this for you.
+
+Windows profiles replace those automatic tiers with their configured total pool.
+`run_server.ps1` defaults to `balanced` (64K); `start_llama_server.ps1` defaults
+to `auto`. With a profile selected, `BONSAI_CTX=0` uses that profile's context.
+Native CLI arguments override environment variables, which override profile
+defaults. See the [profile table](README_PUBLIC_SERVER.md#配置档).
 
 With the optional [4-bit KV cache](KV-CACHE.md) (`BONSAI_KV4=1`) the cache drops to roughly 18 KiB per token, about **1.8 GiB at 100K**, saving roughly 4.5 GiB of KV memory. Total memory also depends on the model packing, runtime buffers, and vision projector.
 
