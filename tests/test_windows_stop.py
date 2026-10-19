@@ -15,6 +15,9 @@ SHELL = shutil.which('pwsh') or shutil.which('powershell')
 class StopTests(unittest.TestCase):
     def test_project_boundary_and_keep_tunnel(self):
         with tempfile.TemporaryDirectory(prefix='bonsai stop ') as folder:
+            # Hosted Windows runners expose an 8.3 TEMP path (RUNNER~1), while
+            # PowerShell expands PSScriptRoot to its long form.
+            folder = str(Path(folder).resolve())
             shutil.copy2(ROOT / 'stop_server.ps1', Path(folder) / 'stop_server.ps1')
             environment = dict(os.environ, BONSAI_TEST_ROOT=folder)
             for keep, expected in ((False, [100, 102]), (True, [100])):
